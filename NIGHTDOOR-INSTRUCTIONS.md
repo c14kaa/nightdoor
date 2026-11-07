@@ -24,6 +24,7 @@ Each story has its own fear signature, which no other story may borrow:
 2. The Bell at Hollowmere: demonic possession on a hill farm with a ruined chapel. Signature: sound and stillness. The possessed go grey, keep their eyes shut, tilt their heads as if listening, hum the bell's note, and count down under their breath. The man in grey has a smooth, mouthless face, and the demon has a cracked bell where its face should be.
 3. Good Boy: skinwalkers; the family dog comes back wrong from the woods on a new-build estate. Signature: skin that doesn't fit. Faces hang loose and split down the middle, people pant and sniff like dogs, eyes are flat white coins that never blink, and the voices mimic yours.
 4. Cairn: five friends lost on a camping trip in a Highland forest; an original creature, the Cairnman. Signature: cairns that appear overnight, the clack of stone on stone in the dark, paths that loop back on themselves, the taken left as cairns wearing their things. Opens cold and grey in fog. Always original creatures: never use characters someone else created (e.g. Sirenhead, Slender Man), since the game will be public.
+5. Signed Out: a school lockdown at 15:13 that drops Harrowfield School into another world; an original creature, the Visitor. Signature: fingernails tapping on glass, door handles tried one by one down a corridor, a VISITOR lanyard, names written down (it takes anyone whose name it can read), the taken "signed out" in its spidery hand and walking off across a black-red void wearing blank lanyards, the clock stuck at 15:13. The Visitor: far too tall, folds at every joint, cracked white porcelain head, black eye holes weeping ink, a mouth that opens top to bottom, seven-fingered hands. Never use Momo or any other real creature/artwork. First story built around puzzles.
 Coming soon, already on the shelf as placeholders: The Keeper of Gull Rock (lighthouse), Signal from Ward 9 (abandoned hospital)
 
 ## Game rules every story follows
@@ -52,7 +53,15 @@ Each story registers itself as NIGHTDOOR.stories['<id>'] with:
   - sfx: van | vanSlow | knock | heart | bell | thunder | scratch | growl | stones (new sounds are added in engine.js)
   - choice: { t: label, o: outcome text, next, gain?, lose?, dmg?, fatal?, scare?: jump-scare key, need?: item(s), fail?: { o, dmg, next } used when the needed item is missing }
   - routing node: { route: [ { need: [...], next }, …, { next: fallback } ] } picks an ending from the items/flags held
-  - ending node: { title, time, mood, img, text, end: { kind: 'best' | 'good' | 'survivor' | 'bad', label } }
+  - ending node: { title, time, mood, img, text, end: { kind: 'best' | 'good' | 'survivor' | 'bittersweet' | 'bad', label } }
+
+## Puzzles and interactions (engine-supported; use them in new stories)
+Not every scene has to be three text choices. Add these to a node; they can be combined with its choices:
+- Countdown: `timer: 10, timerLabel: 'Hide', timeout: { o, dmg, next, scare }` — a draining bar; if the player hasn't chosen in time, `timeout` happens instead.
+- Door picker: `doors: true` on the node, and each choice gets `door: { c: colour, sign: 'LIBRARY', glass: true|colour, double: true, steel: true, light: colour (glow under the door), mark: colour (scratches), signC, signT }`. Choices render as drawn doors. A choice with `next` equal to its own node lets the player try another door.
+- Picture search: `search: { prompt, spots: [ { t: label, x, y, w, h (in the scene's 800x400 coordinates), o, gain, dmg, scare, again } ] }` — tap places in the scene image (or the chips under the text) to find items and clues. Draw the scene so the objects sit inside those boxes. Each spot pays out once.
+- Keypad / typed answer: `code: { answer: '1962' | ['VANE', 'MRVANE', …], kind: 'letters' (else digits), len, tries, prompt, button, clue: { need: item, t: text shown if held }, ok: {o,next,gain}, wrong: {o,dmg}, out: {o,next|fatal,scare} }`. Answers ignore case, spaces and punctuation. Tries reset when the player arrives from another scene.
+- Plan puzzles so the answers come from things the player has seen (scene text, the artwork, items). Text should tell a player who missed the clue roughly where to look; the best ending should usually need a puzzle solved.
 
 ## Hosting (live)
 - Live site: https://nightdoor.vercel.app (Vercel project "nightdoor" in the Hollyend Vercel account, Hobby plan)

@@ -198,6 +198,64 @@ button { font: inherit; color: inherit; }
 .hurtflash { position: fixed; inset: 0; z-index: 70; pointer-events: none; box-shadow: inset 0 0 160px 40px rgba(220,20,10,.75); animation: hf .7s ease forwards; }
 @keyframes hf { from { opacity: 1 } to { opacity: 0 } }
 
+
+/* ---------- puzzles ---------- */
+.interact.hide { visibility: hidden; }
+.interact:empty { display: none; }
+.timer { display: grid; grid-template-columns: auto minmax(0, 1fr) 2.2em; gap: 10px; align-items: center; margin: 18px 0 -8px; color: var(--accent); }
+.timer .track { height: 8px; background: var(--line); overflow: hidden; }
+.timer i { display: block; height: 100%; width: 100%; background: var(--accent); transition: width .1s linear; }
+.timer b { text-align: right; font-size: 15px; font-variant-numeric: tabular-nums; }
+.timer.urgent { color: var(--danger); animation: glitch 1s steps(1) infinite; }
+.timer.urgent i { background: var(--danger); }
+.choices.doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 12px; border-top: 0; margin-top: 22px; }
+.choices.doors li { border: 0; }
+.choices.doors li.dout { grid-column: 1 / -1; }
+.door-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 6px 12px; text-align: center; border: 1px solid var(--line) !important; height: 100%; }
+.door-btn .dsvg { width: 72%; max-width: 110px; aspect-ratio: 100 / 160; display: block; transition: transform .25s ease; }
+.door-btn .dsvg svg { width: 100%; height: 100%; display: block; }
+.door-btn .t { font-size: 15.5px; line-height: 1.3; }
+.door-btn .needs { justify-content: center; }
+.door-btn:hover:not(:disabled) .dsvg { transform: translateY(-3px) scale(1.03); }
+.choices.doors .picked .door-btn { border-color: var(--accent) !important; }
+.search { margin-top: 18px; border: 1px dashed var(--line); padding: 12px 14px; background: var(--choice); }
+.search .slabel { color: var(--accent); }
+.spotlist { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.schip { border: 1px solid var(--line); background: transparent; padding: 6px 10px; cursor: pointer; font-size: 14.5px; }
+.schip:hover:not(:disabled) { border-color: var(--accent); }
+.schip.got { opacity: .55; text-decoration: line-through; }
+.snote { margin: 10px 0 0; font-style: italic; min-height: 1.4em; max-width: 60ch; }
+.snote b { font-style: normal; color: var(--accent); }
+.snote .effects { margin-top: 8px; }
+.scene-img .spot { cursor: pointer; }
+.scene-img .spot rect { fill: transparent; stroke: transparent; }
+.scene-img .spot:hover rect { stroke: rgba(255,240,200,.55); stroke-width: 2; stroke-dasharray: 6 5; }
+.scene-img .spot .glint { fill: rgba(255,244,210,.0); stroke: rgba(255,244,210,.75); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: glint 2.2s ease-in-out infinite; pointer-events: none; }
+.scene-img .spot.got .glint, .scene-img .spot.off .glint { display: none; }
+.scene-img .spot.off { pointer-events: none; }
+@keyframes glint { 0%,100% { opacity: .15; transform: scale(.6) } 50% { opacity: 1; transform: scale(1.25) } }
+.code { margin-top: 18px; border: 1px solid var(--line); background: var(--choice); padding: 14px; max-width: 360px; }
+.code.letters { max-width: 520px; }
+.code .clabel { color: var(--accent); margin-bottom: 10px; }
+.slots { display: flex; gap: 8px; margin-bottom: 12px; }
+.slots span { width: 44px; height: 54px; border: 1px solid var(--line); background: var(--paper); display: grid; place-items: center; font-family: var(--f-mono); font-size: 26px; }
+.slots span.on { border-color: var(--accent); }
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.keys button { font-family: var(--f-mono); font-size: 20px; padding: 12px 0; background: var(--paper); border: 1px solid var(--line); cursor: pointer; color: var(--ink); }
+.keys button:hover:not(:disabled) { border-color: var(--accent); }
+.keys button:active:not(:disabled) { transform: translateY(1px); }
+.keys button.ok { background: var(--accent); color: #140c05; border-color: var(--accent); }
+.crow { display: flex; gap: 8px; flex-wrap: wrap; }
+.crow input { flex: 1 1 200px; min-width: 0; font-family: var(--f-mono); font-size: 20px; letter-spacing: .12em; text-transform: uppercase; padding: 10px 12px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+.crow input:focus { outline: 2px solid var(--accent); }
+.code .tries { color: var(--muted); margin-top: 10px; }
+.cmsg { margin: 6px 0 0; color: var(--danger); font-style: italic; min-height: 1.2em; }
+.code .clue { margin: 10px 0 0; font-size: 14.5px; color: var(--muted); border-left: 2px solid var(--accent); padding-left: 10px; }
+.code.shake { animation: shake2 .4s linear; }
+@keyframes shake2 { 20% { transform: translateX(-8px) } 40% { transform: translateX(7px) } 60% { transform: translateX(-5px) } 80% { transform: translateX(3px) } }
+.code.right .slots span, .code.right input { border-color: var(--good); color: var(--good); }
+.code .outcome { margin: 14px -14px -14px; }
+
 @media (max-width: 640px) {
   .story { grid-template-columns: minmax(0, 1fr); }
   .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -249,6 +307,7 @@ button { font: inherit; color: inherit; }
     <div class="scene-img" id="sceneImg"><span class="act mono" id="act"></span></div>
     <h2 class="scene-title" id="title"></h2>
     <p class="scene-text" id="text" title="Tap to skip"></p>
+    <div class="interact" id="interact"></div>
     <ol class="choices" id="choices"></ol>
   </article>
 </main>
@@ -264,6 +323,8 @@ button { font: inherit; color: inherit; }
 <script src="stories/good-boy.js"></script>
 <script src="js/art-cairn.js"></script>
 <script src="stories/cairn.js"></script>
+<script src="js/art-signedout.js"></script>
+<script src="stories/signed-out.js"></script>
 <script src="js/engine.js"></script>
 
 </body></html>

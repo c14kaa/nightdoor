@@ -11,6 +11,7 @@
     { id: 'hollowmere' },
     { id: 'good-boy' },
     { id: 'cairn' },
+    { id: 'signed-out' },
     { id: 'gull-rock', soon: true, title: 'The Keeper of Gull Rock', cover: 'cover_gullrock', tagline: 'The light must never go out. Something in the sea is counting on it.', blurb: 'A winter posting to a lighthouse eleven miles from shore. The last keeper left a logbook, and a list of rules written in a shaking hand.' },
     { id: 'ward-9', soon: true, title: 'Signal from Ward 9', cover: 'cover_ward9', tagline: 'The hospital closed in 1974. The night nurse is still doing her rounds.', blurb: 'A pager goes off in an abandoned hospital at 3:03 every morning. Tonight, you answer it.' }
   ];
@@ -101,8 +102,23 @@
       if (!this.ctx) return; const c = this.ctx;
       [0, 1.1, 1.5, 3.0, 4.2, 4.5].forEach(dt => { const t = c.currentTime + .3 + dt; const n = this.noise(.08), bp = c.createBiquadFilter(), g = c.createGain(); bp.type = 'bandpass'; bp.frequency.value = 1700 + Math.random() * 500; bp.Q.value = 6; g.gain.setValueAtTime(1.4, t); g.gain.exponentialRampToValueAtTime(.001, t + .08); n.connect(bp); bp.connect(g); g.connect(this.master); n.start(t); this.osc('triangle', 820 + Math.random() * 200, t, .06, .12); });
     },
+    alarm() {
+      if (!this.ctx) return; const t0 = this.ctx.currentTime + .1;
+      for (let k = 0; k < 3; k++) { const t = t0 + k * 1.3; this.osc('square', 880, t, .9, .07, null); this.osc('square', 660, t + .45, .45, .07, null); }
+    },
+    tap() {
+      if (!this.ctx) return; const c = this.ctx;
+      [0, .5, .62, 1.6, 1.72, 1.84].forEach(dt => { const t = c.currentTime + .3 + dt; const n = this.noise(.03), hp = c.createBiquadFilter(), g = c.createGain(); hp.type = 'highpass'; hp.frequency.value = 2400; g.gain.setValueAtTime(1.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .03); n.connect(hp); hp.connect(g); g.connect(this.master); n.start(t); this.osc('sine', 3200, t, .04, .05); });
+    },
+    handle() {
+      if (!this.ctx) return; const c = this.ctx;
+      [0, .25, 1.6, 1.85, 3.1, 3.3, 3.5].forEach((dt, i) => { const t = c.currentTime + .3 + dt; const n = this.noise(.18), bp = c.createBiquadFilter(), g = c.createGain(); bp.type = 'bandpass'; bp.frequency.value = 900 + (i % 2) * 300; bp.Q.value = 4; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.9 * (1 - i * .08), t + .02); g.gain.exponentialRampToValueAtTime(.001, t + .18); n.connect(bp); bp.connect(g); g.connect(this.master); n.start(t); this.osc('triangle', 240, t, .1, .08, null, 180); });
+    },
+    tick(fast) { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc('square', fast ? 1500 : 1100, t, .03, .05); },
+    beep() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc('square', 1320, t, .07, .05); },
+    buzz() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc('sawtooth', 120, t, .35, .18); this.osc('square', 123, t, .35, .08); },
     heart() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc('sine', 62, t, .18, .7, null, 40); this.osc('sine', 58, t + .2, .2, .55, null, 38); },
-    play(name) { if (!this.ctx || !this.on) return; ({ van: () => this.tune(false), vanSlow: () => this.tune(true), knock: () => this.knock(), heart: () => this.heart(), bell: () => this.bell(3), thunder: () => this.thunder(), scratch: () => this.scratch(), growl: () => this.growl(), stones: () => this.stones() })[name]?.(); },
+    play(name) { if (!this.ctx || !this.on) return; ({ van: () => this.tune(false), vanSlow: () => this.tune(true), knock: () => this.knock(), heart: () => this.heart(), bell: () => this.bell(3), thunder: () => this.thunder(), scratch: () => this.scratch(), growl: () => this.growl(), stones: () => this.stones(), alarm: () => this.alarm(), tap: () => this.tap(), handle: () => this.handle() })[name]?.(); },
     setMood(mood) {
       if (!this.ctx || mood === this.droneMood) return; this.droneMood = mood;
       const c = this.ctx, t = c.currentTime;
@@ -218,24 +234,29 @@
   }
 
   function renderNode(n, id) {
-    const same = lastNode === id; lastNode = id; busy = false;
+    const same = lastNode === id; lastNode = id; busy = false; stopTimer();
     document.body.dataset.mood = n.mood || 'night';
     SND.setMood(n.mood || 'night');
     const frozen = new RegExp(story.frozen || '^20:13$').test(n.time || '');
     $('clock').textContent = n.time || ''; $('clock').classList.toggle('frozen', frozen);
     $('sceneImg').innerHTML = ART.scene(n.img) + `<span class="act mono">${n.act || ''}</span>`;
     $('title').textContent = n.title || '';
-    const ch = $('choices'); ch.className = 'choices hide'; ch.innerHTML = '';
+    const ch = $('choices'); ch.className = 'choices hide' + (n.doors ? ' doors' : ''); ch.innerHTML = '';
     (n.choices || []).forEach((c, i) => {
       const li = document.createElement('li');
       const needs = arr(c.need).filter(x => !item(x).hidden);
       const needHtml = needs.length ? `<span class="needs">${needs.map(x => `<span class="need${S.inv.includes(x) ? '' : ' missing'}">${S.inv.includes(x) ? 'Use' : 'Needs'} ${item(x).icon} ${item(x).name}</span>`).join('')}</span>` : '';
-      li.innerHTML = `<button class="choice" type="button"><span class="k">${i + 1}</span><span class="t">${c.t}</span><span class="arrow" aria-hidden="true">→</span>${needHtml}</button>`;
+      li.innerHTML = n.doors
+        ? `<button class="choice door-btn" type="button"><span class="dsvg">${doorSVG(c.door || {})}</span><span class="t">${c.t}</span>${needHtml}</button>`
+        : `<button class="choice" type="button"><span class="k">${i + 1}</span><span class="t">${c.t}</span><span class="arrow" aria-hidden="true">→</span>${needHtml}</button>`;
       li.querySelector('button').addEventListener('click', () => choose(n, i, li));
       ch.appendChild(li);
     });
+    const ix = $('interact'); ix.innerHTML = ''; ix.className = 'interact hide';
+    if (n.search) buildSearch(n, id);
+    if (n.code) buildCode(n, id, same);
     if (!same) window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
-    const reveal = () => { ch.classList.remove('hide'); requestAnimationFrame(() => ch.classList.add('in')); };
+    const reveal = () => { ch.classList.remove('hide'); ix.classList.remove('hide'); requestAnimationFrame(() => ch.classList.add('in')); if (n.timer) startTimer(n); };
     const afterScare = () => typeText($('text'), n.text, same ? 0 : 1, reveal);
     if (n.sfx) SND.play(n.sfx);
     if (n.scare && !same) { $('text').textContent = ''; scare(n.scare, afterScare); } else afterScare();
@@ -260,16 +281,29 @@
     const c = n.choices[idx];
     const ok = !c.need || has(c.need);
     const r = ok ? c : Object.assign({}, c.fail || {});
+    lockChoices(); stopTimer();
+    li.classList.add('picked');
+    const host = n.doors ? outHost() : li;
+    const go = () => resolve(r, host);
+    if (r.scare) scare(r.scare, go); else go();
+  }
+
+  function lockChoices() {
     const ch = $('choices'); ch.classList.add('done');
     ch.querySelectorAll('.choice').forEach(b => b.disabled = true);
-    li.classList.add('picked');
-    const go = () => {
+    $('interact').querySelectorAll('button,input').forEach(b => b.disabled = true);
+    $('sceneImg').querySelectorAll('.spot').forEach(b => b.classList.add('off'));
+  }
+  function outHost() { const li = document.createElement('li'); li.className = 'dout'; $('choices').appendChild(li); return li; }
+
+  /* apply an outcome (gain/lose/dmg/fatal/next) and show its text with a Continue button */
+  function resolve(r, host) {
+    {
       const fx = [];
       const gained = arr(r.gain).filter(g => !S.inv.includes(g));
       gained.forEach(g => S.inv.push(g));
       gained.filter(g => !item(g).hidden).forEach(g => fx.push(`<span class="fx gain">+ ${item(g).icon} ${item(g).name}</span>`));
       arr(r.lose).forEach(l => { S.inv = S.inv.filter(x => x !== l); });
-      if (ok && c.need && arr(c.need).some(x => !item(x).hidden)) { /* used item: kept */ }
       let dead = false;
       if (r.dmg) { S.lives = Math.max(0, S.lives - r.dmg); fx.push(`<span class="fx hurt">− ${r.dmg} life</span>`); hurt(); if (S.lives <= 0) dead = true; }
       if (r.fatal) { dead = true; fx.push('<span class="fx dead">Fatal</span>'); }
@@ -278,7 +312,7 @@
       const box = document.createElement('div'); box.className = 'outcome';
       const label = dead ? (r.fatal ? 'Accept your fate' : 'Your last candle goes out') : (r.next === S.node ? 'Choose again' : 'Continue');
       box.innerHTML = `<p></p>${fx.length ? `<div class="effects">${fx.join('')}</div>` : ''}<button class="btn" type="button" hidden>${label} →</button>`;
-      li.appendChild(box);
+      host.appendChild(box);
       const btn = box.querySelector('.btn');
       typeText(box.querySelector('p'), r.o || '', 1, () => { btn.hidden = false; btn.focus({ preventScroll: true }); box.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' }); });
       btn.addEventListener('click', () => {
@@ -287,9 +321,126 @@
         if (next === S.node) { lastNode = S.node; renderNode(story.nodes[S.node], S.node); }
         else goto(next);
       });
-    };
-    if (r.scare) scare(r.scare, go); else go();
+    }
   }
+
+  /* ---------- puzzles: countdown, doors, picture search, keypad / typed codes ---------- */
+  let timerId = null;
+  function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } const t = document.getElementById('timer'); if (t) t.remove(); }
+  function startTimer(n) {
+    stopTimer();
+    const secs = n.timer, bar = document.createElement('div'); bar.id = 'timer'; bar.className = 'timer';
+    bar.innerHTML = `<span class="mono">${n.timerLabel || 'Decide'}</span><div class="track"><i></i></div><b class="mono">${secs}</b>`;
+    $('choices').before(bar);
+    const t0 = Date.now(), fill = bar.querySelector('i'), num = bar.querySelector('b');
+    if (SND.on) SND.tick();
+    timerId = setInterval(() => {
+      const left = Math.max(0, secs - (Date.now() - t0) / 1000);
+      fill.style.width = (left / secs * 100) + '%'; num.textContent = Math.ceil(left);
+      bar.classList.toggle('urgent', left < Math.min(4, secs / 3));
+      if (Math.ceil(left) !== Math.ceil(left + .1) && SND.on) SND.tick(left < 4);
+      if (left <= 0) { stopTimer(); if (busy) return; busy = true; lockChoices(); const r = n.timeout || {}; const host = outHost(); const go = () => resolve(r, host); r.scare ? scare(r.scare, go) : go(); }
+    }, 100);
+  }
+
+  function doorSVG(d) {
+    const c = d.c || '#5a3e2a', dk = shadeHex(c, -.35), w = d.double ? 92 : 70, x = (100 - w) / 2;
+    let s = `<svg viewBox="0 0 100 160" aria-hidden="true"><rect x="${x - 6}" y="8" width="${w + 12}" height="152" fill="${d.frame || '#2a2622'}"/>`;
+    const leaf = (lx, lw) => {
+      let g = `<rect x="${lx}" y="14" width="${lw}" height="146" fill="${c}"/><rect x="${lx + 4}" y="18" width="${lw - 8}" height="138" fill="none" stroke="${dk}" stroke-width="2"/>`;
+      if (d.glass) g += `<rect x="${lx + lw / 2 - 7}" y="34" width="14" height="40" fill="${d.glass === true ? '#0b1020' : d.glass}" stroke="${dk}" stroke-width="2"/>`;
+      if (d.steel) g += `<rect x="${lx}" y="14" width="${lw}" height="146" fill="url(#st)" opacity=".5"/>`;
+      return g;
+    };
+    if (d.steel) s += `<defs><linearGradient id="st" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".2"/></linearGradient></defs>`;
+    if (d.double) { s += leaf(x, w / 2 - 1) + leaf(x + w / 2 + 1, w / 2 - 1); s += `<rect x="${50 - 9}" y="88" width="6" height="16" rx="2" fill="#c9c2b0"/><rect x="${50 + 3}" y="88" width="6" height="16" rx="2" fill="#c9c2b0"/>`; }
+    else { s += leaf(x, w); s += d.steel ? `<rect x="${x + w - 16}" y="80" width="6" height="24" rx="2" fill="#d8d8d8"/>` : `<rect x="${x + w - 18}" y="88" width="12" height="4" rx="2" fill="#c9c2b0"/><circle cx="${x + w - 15}" cy="90" r="3" fill="#c9c2b0"/>`; }
+    if (d.sign) s += `<rect x="${50 - 30}" y="${d.glass ? 80 : 40}" width="60" height="16" rx="2" fill="${d.signC || '#f3efe4'}"/><text x="50" y="${d.glass ? 91.5 : 51.5}" font-family="Arial,sans-serif" font-size="${d.sign.length > 10 ? 6.5 : 8}" font-weight="700" text-anchor="middle" fill="${d.signT || '#222'}">${d.sign}</text>`;
+    if (d.light) s += `<rect x="${x}" y="156" width="${w}" height="4" fill="${d.light}"/><ellipse cx="50" cy="160" rx="${w / 1.6}" ry="8" fill="${d.light}" opacity=".35"/>`;
+    if (d.mark) s += `<path d="M${x + 12},60 l14,50 M${x + 18},56 l14,52 M${x + 24},58 l12,48" stroke="${d.mark}" stroke-width="2.4" opacity=".75"/>`;
+    return s + '</svg>';
+  }
+  function shadeHex(h, t) { h = h.replace('#', ''); const n = parseInt(h, 16); const k = v => Math.max(0, Math.min(255, Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t))); return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => k(v).toString(16).padStart(2, '0')).join(''); }
+
+  function buildSearch(n, id) {
+    S.found = S.found || {}; const got = S.found[id] = S.found[id] || [];
+    const svg = $('sceneImg').querySelector('svg'), NS = 'http://www.w3.org/2000/svg';
+    const sp = n.search.spots;
+    sp.forEach((p, k) => {
+      if (svg) {
+        const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'spot' + (got.includes(k) ? ' got' : '')); g.dataset.k = k;
+        g.innerHTML = `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="6"/><circle class="glint" cx="${p.x + p.w / 2}" cy="${p.y + p.h / 2}" r="7"/>`;
+        g.addEventListener('click', () => searchSpot(n, id, k));
+        svg.appendChild(g);
+      }
+    });
+    const box = document.createElement('div'); box.className = 'search';
+    box.innerHTML = `<div class="mono slabel">${n.search.prompt || 'Search: tap the picture, or pick a spot'}</div><div class="spotlist">${sp.map((p, k) => `<button type="button" class="schip${got.includes(k) ? ' got' : ''}" data-k="${k}">${p.t}</button>`).join('')}</div><p class="snote" id="snote" aria-live="polite"></p>`;
+    box.querySelectorAll('.schip').forEach(b => b.addEventListener('click', () => searchSpot(n, id, +b.dataset.k)));
+    $('interact').appendChild(box);
+  }
+  function searchSpot(n, id, k) {
+    if (busy) return; SND.init();
+    if (typing && finishTyping) finishTyping();
+    const p = n.search.spots[k], got = S.found[id], first = !got.includes(k);
+    const show = () => {
+      const fx = []; let dead = false, gained = [];
+      if (first) {
+        got.push(k);
+        gained = arr(p.gain).filter(g => !S.inv.includes(g)); gained.forEach(g => S.inv.push(g));
+        gained.filter(g => !item(g).hidden).forEach(g => fx.push(`<span class="fx gain">+ ${item(g).icon} ${item(g).name}</span>`));
+        if (p.dmg) { S.lives = Math.max(0, S.lives - p.dmg); fx.push(`<span class="fx hurt">− ${p.dmg} life</span>`); hurt(); dead = S.lives <= 0; }
+        if (gained.some(g => !item(g).hidden)) SND.pickup();
+        save(); renderHud(gained);
+      }
+      document.querySelectorAll(`.spot[data-k="${k}"], .schip[data-k="${k}"]`).forEach(e => e.classList.add('got'));
+      const note = $('snote'); note.innerHTML = `<b>${p.t}.</b> <span></span>${fx.length ? `<span class="effects">${fx.join('')}</span>` : ''}`;
+      typeText(note.querySelector('span'), first ? p.o : (p.again || 'Nothing else there.'), first ? 1 : 0, null);
+      if (dead) setTimeout(() => showDeath(p, false), 1600);
+    };
+    if (first && p.scare) scare(p.scare, show); else show();
+  }
+
+  const norm = v => String(v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  function buildCode(n, id, same) {
+    const cd = n.code; S.tries = S.tries || {};
+    if (!same || S.tries[id] == null) S.tries[id] = cd.tries || 3;
+    const letters = cd.kind === 'letters', len = cd.len || String(arr(cd.answer)[0]).length;
+    const box = document.createElement('div'); box.className = 'code' + (letters ? ' letters' : ''); box.id = 'codebox';
+    const clue = cd.clue && (!cd.clue.need || has(cd.clue.need)) ? `<p class="clue">${cd.clue.t}</p>` : '';
+    box.innerHTML = `<div class="mono clabel">${cd.prompt || 'Enter the code'}</div>
+      ${letters ? `<div class="crow"><input id="cin" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="${cd.max || 24}" aria-label="${cd.prompt || 'Answer'}"><button type="button" class="btn" id="cok">${cd.button || 'Write it'}</button></div>`
+        : `<div class="slots" id="slots">${'<span></span>'.repeat(len)}</div><div class="keys" id="codeKeys">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(k => `<button type="button" data-k="${k}"${k === '✓' ? ' class="ok"' : ''}>${k}</button>`).join('')}</div>`}
+      <div class="mono tries" id="ctries">${S.tries[id]} ${S.tries[id] === 1 ? 'try' : 'tries'} left</div><p class="cmsg" id="cmsg" aria-live="polite"></p>${clue}`;
+    $('interact').appendChild(box);
+    let val = '';
+    const draw = () => box.querySelectorAll('#slots span').forEach((sl, i) => { sl.textContent = val[i] || ''; sl.classList.toggle('on', i < val.length); });
+    const submit = () => {
+      if (busy) return; SND.init();
+      const guess = letters ? $('cin').value : val; if (!norm(guess)) return;
+      if (arr(cd.answer).map(norm).includes(norm(guess))) {
+        busy = true; box.classList.add('right'); lockChoices(); stopTimer(); if (SND.on) SND.chime();
+        const r = cd.ok || {}; const go = () => resolve(r, box); setTimeout(() => r.scare ? scare(r.scare, go) : go(), 450); return;
+      }
+      S.tries[id]--; save();
+      box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); if (SND.on) SND.buzz();
+      const w = cd.wrong || {}; let dead = false;
+      if (w.dmg) { S.lives = Math.max(0, S.lives - w.dmg); hurt(); renderHud(); dead = S.lives <= 0; }
+      $('cmsg').textContent = (w.o || 'Wrong.') + (w.dmg ? ` (− ${w.dmg} life)` : '');
+      $('ctries').textContent = `${S.tries[id]} ${S.tries[id] === 1 ? 'try' : 'tries'} left`;
+      val = ''; draw(); if (letters) $('cin').value = '';
+      if (dead) { busy = true; return setTimeout(() => showDeath(w, false), 1200); }
+      if (S.tries[id] <= 0) { busy = true; lockChoices(); stopTimer(); const r = cd.out || {}; const go = () => resolve(r, box); setTimeout(() => r.scare ? scare(r.scare, go) : go(), 500); }
+    };
+    if (letters) { $('cok').addEventListener('click', submit); $('cin').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }); }
+    else box.querySelectorAll('#codeKeys button').forEach(b => b.addEventListener('click', () => codeKey(b.dataset.k)));
+    codeKey = k => {
+      if (busy || letters) return; SND.init();
+      if (k === '⌫') val = val.slice(0, -1); else if (k === '✓') return submit(); else if (val.length < len) { val += k; if (SND.on) SND.beep(); }
+      draw(); if (val.length === len && cd.auto !== false) setTimeout(submit, 250);
+    };
+  }
+  let codeKey = null;
 
   function hurt() { SND.hurt(); const d = document.createElement('div'); d.className = 'hurtflash'; document.body.appendChild(d); setTimeout(() => d.remove(), 800); if (navigator.vibrate) try { navigator.vibrate(120); } catch (e) { } }
 
@@ -303,6 +454,7 @@
 
   /* ---------- death + endings ---------- */
   function showDeath(r, fatal) {
+    stopTimer();
     SND.setMood('night'); SND.death();
     const n = story.nodes[S.node]; S.deaths++;
     const deaths = S.deaths; const steps = S.steps;
@@ -318,6 +470,7 @@
   }
 
   function showEnding(id, n) {
+    stopTimer();
     const found = endingsFound(story.id); if (!found.includes(id)) { found.push(id); store.set('endings.' + story.id, found); }
     const bad = n.end.kind === 'bad';
     document.body.dataset.mood = n.mood || 'day'; SND.setMood(bad ? 'night' : 'day'); bad ? SND.death() : SND.chime();
@@ -336,11 +489,14 @@
   }
 
   /* ---------- wiring ---------- */
-  $('backBtn').addEventListener('click', () => { save(); renderHome(); });
+  $('backBtn').addEventListener('click', () => { stopTimer(); save(); renderHome(); });
   $('sndBtn').addEventListener('click', () => { SND.init(); SND.setOn(!SND.on); renderHud(); if (SND.on && story) SND.setMood((story.nodes[S.node] || {}).mood); });
   document.addEventListener('keydown', e => {
     if ($('play').hidden || !$('screen').hidden || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (['1', '2', '3'].includes(e.key)) { const b = document.querySelectorAll('#choices .choice')[+e.key - 1]; if (b && !b.disabled && $('choices').classList.contains('in')) b.click(); else if (typing && finishTyping) finishTyping(); }
+    if (e.target && e.target.tagName === 'INPUT') return;
+    const kp = document.getElementById('codeKeys');
+    if (kp && !busy && codeKey) { if (/^[0-9]$/.test(e.key)) { codeKey(e.key); return; } if (e.key === 'Backspace') { codeKey('⌫'); return; } if (e.key === 'Enter') { codeKey('✓'); return; } }
+    if (['1', '2', '3', '4'].includes(e.key)) { const b = document.querySelectorAll('#choices .choice')[+e.key - 1]; if (b && !b.disabled && $('choices').classList.contains('in')) b.click(); else if (typing && finishTyping) finishTyping(); }
     if ((e.key === ' ' || e.key === 'Enter') && typing && finishTyping && document.activeElement === document.body) { e.preventDefault(); finishTyping(); }
   });
 
