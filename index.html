@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Interactive horror stories you play in your browser. Every choice opens a door. Some of them don't open back.">
+<meta name="theme-color" content="#05070c">
+<meta property="og:title" content="Nightdoor">
+<meta property="og:description" content="Interactive horror stories you play in your browser. Every choice opens a door. Some of them don't open back.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2305070c'/%3E%3Crect x='9' y='5' width='14' height='24' fill='%231a0f0a' stroke='%233a2416' stroke-width='1.5'/%3E%3Crect x='20' y='5' width='3' height='24' fill='%23ffd27a'/%3E%3Ccircle cx='12' cy='17' r='1.2' fill='%23d6ad4a'/%3E%3C/svg%3E">
+<title>Nightdoor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (max 760px) — homepage is a shelf of story "doors"; the player is one illustrated page per scene with three choices beneath. Palette shifts with the story's mood. */
+@property --bg  { syntax: '<color>'; inherits: true; initial-value: #05070c; }
+@property --bg2 { syntax: '<color>'; inherits: true; initial-value: #121a2c; }
+:root {
+  color-scheme: dark;
+  --bg: #05070c; --bg2: #121a2c;
+  --paper: #0a0f1a; --ink: #d9dde6; --muted: #8b94a8; --accent: #e0b25a; --line: #1c2436; --choice: #0f1626;
+  --danger: #e0473a; --good: #8fd16a;
+  --f-display: 'IM Fell English SC', 'Iowan Old Style', Georgia, serif;
+  --f-title: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
+  --f-body: 'Spectral', Georgia, 'Times New Roman', serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --s-1: 13px; --s0: 16.5px; --s1: 20px; --s2: 26px; --s3: 36px; --s4: clamp(44px, 9vw, 84px);
+}
+[data-mood="day"]    { --bg:#d9ebf2; --bg2:#fbf2dc; --paper:#fffaf0; --ink:#2a2620; --muted:#6d665a; --accent:#c9442f; --line:#e6dcc6; --choice:#f6eedb; color-scheme: light; }
+[data-mood="golden"] { --bg:#efc690; --bg2:#fbe8c4; --paper:#fff6e6; --ink:#2e241a; --muted:#7a654c; --accent:#c25a26; --line:#ecd6b0; --choice:#f7e5c6; color-scheme: light; }
+[data-mood="dusk"]   { --bg:#1d1229; --bg2:#5e2846; --paper:#1d1426; --ink:#f1e4dc; --muted:#b9a2b2; --accent:#f0a35e; --line:#3a2846; --choice:#271b32; }
+[data-mood="fog"]    { --bg:#1c2321; --bg2:#4c5754; --paper:#1e2523; --ink:#e3e8e3; --muted:#9ea9a4; --accent:#cdc58c; --line:#344039; --choice:#252e2b; }
+[data-mood="night"]  { --bg:#020308; --bg2:#0c1528; --paper:#090e18; --ink:#d6dbe6; --muted:#8a95ac; --accent:#a9bde3; --line:#18213a; --choice:#0e1525; }
+[data-mood="under"]  { --bg:#010402; --bg2:#0c1d10; --paper:#060e08; --ink:#d2e6cb; --muted:#86a37e; --accent:#a6e57f; --line:#14281a; --choice:#0a160d; }
+[data-mood="blood"]  { --bg:#060101; --bg2:#300606; --paper:#100303; --ink:#f2d8d2; --muted:#b88a84; --accent:#ff5544; --line:#2f0d0a; --choice:#190505; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  margin: 0; color: var(--ink); font-family: var(--f-body); font-size: var(--s0); line-height: 1.6;
+  background: radial-gradient(120% 70% at 50% 0%, var(--bg2) 0%, var(--bg) 70%) fixed, var(--bg);
+  transition: --bg 1.6s ease, --bg2 1.6s ease, color .8s ease;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 64px; }
+.mono { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+
+/* ---------- HOME ---------- */
+#home .hero { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; padding-block: 28px 18px; }
+.door {
+  width: 74px; height: 120px; position: relative; background: #1a0f0a; border: 3px solid #3a2416;
+  box-shadow: 0 0 60px rgba(224,178,90,.18);
+}
+.door::before { content: ''; position: absolute; inset: 0 0 0 auto; width: 9px; background: linear-gradient(#ffe2a0, #e0a54a); box-shadow: 0 0 22px 6px rgba(255,214,140,.55); animation: crack 4.5s ease-in-out infinite; }
+.door::after { content: ''; position: absolute; left: 10px; top: 56px; width: 7px; height: 7px; border-radius: 50%; background: #d6ad4a; }
+@keyframes crack { 0%,100% { width: 7px; opacity: .85 } 50% { width: 13px; opacity: 1 } 62% { width: 6px; opacity: .6 } }
+.brand { font-family: var(--f-display); font-size: var(--s4); line-height: .9; margin: 0; letter-spacing: .02em; color: #efe6d4; text-wrap: balance; }
+.brand small { display: block; font-family: var(--f-title); font-style: italic; font-size: var(--s1); color: var(--muted); letter-spacing: 0; margin-top: 10px; }
+.shelf-label { margin: 34px 0 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.shelf { display: grid; gap: 18px; }
+.story {
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); background: #0b0f19; border: 1px solid #1e2638;
+}
+.story .cover { aspect-ratio: 16 / 10; overflow: hidden; position: relative; background: #000; }
+.story .cover svg, .scene-img svg { width: 100%; height: 100%; display: block; }
+.story .body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.story h2 { font-family: var(--f-display); font-size: var(--s3); line-height: 1; margin: 0; color: #f2e8d6; text-wrap: balance; }
+.story .tag { font-family: var(--f-title); font-style: italic; color: #e0b25a; margin: 0; }
+.story p.blurb { margin: 0; color: #b7bdcb; font-size: 15px; }
+.story .meta { color: #8b94a8; display: flex; gap: 14px; flex-wrap: wrap; }
+.story .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
+.btn {
+  appearance: none; border: 1px solid var(--accent); background: var(--accent); color: #140c05; cursor: pointer;
+  font-family: var(--f-mono); font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; padding: 11px 16px; font-weight: 500;
+}
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:hover { filter: brightness(1.12); }
+.btn:active { transform: translateY(1px); }
+.story.soon { opacity: .55; }
+.story.soon .cover { filter: grayscale(.6) brightness(.7); }
+.story.soon .cover::after { content: 'Coming soon'; position: absolute; left: 12px; top: 12px; font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; background: #000c; color: #e0b25a; padding: 5px 8px; }
+.rules { margin-top: 34px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; border-top: 1px solid #1e2638; padding-top: 18px; }
+.rules div { min-width: 0; }
+.rules b { display: block; font-family: var(--f-title); font-weight: 400; font-size: 19px; color: #efe6d4; }
+.rules span { color: #8b94a8; font-size: 14px; }
+.note { margin-top: 20px; color: #6f7890; font-size: 13.5px; font-style: italic; }
+
+/* ---------- PLAYER ---------- */
+.hud {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px; margin-inline: -16px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+}
+.hud .back { background: none; border: 0; cursor: pointer; color: var(--muted); padding: 4px 0; }
+.hud .back:hover { color: var(--ink); }
+.hud .clock { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 15px; letter-spacing: .06em; color: var(--ink); margin-left: auto; }
+.hud .clock.frozen { color: var(--accent); animation: glitch 2.4s steps(1) infinite; }
+@keyframes glitch { 0%,92%,100% { transform: none; opacity: 1 } 93% { transform: translateX(2px); opacity: .5 } 95% { transform: translateX(-2px) } }
+.lives { display: flex; gap: 4px; align-items: flex-end; }
+.lives svg { width: 18px; height: 30px; }
+.lives .out .flame { opacity: 0; }
+.lives .out .smoke { opacity: .7; }
+.lives .smoke { opacity: 0; transition: opacity .6s; }
+.flame { transform-origin: 9px 11px; animation: flick 1.4s ease-in-out infinite alternate; transition: opacity .4s; }
+@keyframes flick { from { transform: scale(1, 1) } to { transform: scale(.9, 1.12) rotate(3deg) } }
+.snd { background: none; border: 1px solid var(--line); cursor: pointer; color: var(--muted); padding: 4px 8px; }
+.inv { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-block: 12px 4px; min-height: 46px; }
+.inv .empty { color: var(--muted); font-style: italic; font-size: 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border: 1px solid var(--line); background: var(--choice);
+  font-size: 13.5px; line-height: 1.3; cursor: default;
+}
+.chip.usable { cursor: pointer; border-color: var(--accent); }
+.chip.new { animation: pop .6s ease; }
+@keyframes pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.12) } 100% { transform: none; opacity: 1 } }
+.chip .ic { font-size: 15px; }
+
+.page { margin-top: 10px; }
+.scene-img { position: relative; aspect-ratio: 2 / 1; overflow: hidden; background: #000; border: 1px solid var(--line); }
+[data-mood="night"] .scene-img svg, [data-mood="under"] .scene-img svg { animation: dim 7s ease-in-out infinite; }
+@keyframes dim { 0%,100% { filter: brightness(1) } 47% { filter: brightness(1) } 48% { filter: brightness(.55) } 49% { filter: brightness(1) } 51% { filter: brightness(.7) } 52% { filter: brightness(1) } }
+[data-mood="blood"] .scene-img::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 90px rgba(255,40,30,.45); animation: pulse 1.1s ease-in-out infinite; pointer-events: none; }
+@keyframes pulse { 0%,100% { opacity: .4 } 15% { opacity: 1 } 30% { opacity: .5 } 45% { opacity: .9 } }
+.scene-img .act { position: absolute; left: 10px; bottom: 10px; background: #000b; color: #f3ead8; padding: 4px 8px; }
+.scene-title { font-family: var(--f-title); font-size: var(--s3); line-height: 1.05; margin: 18px 0 8px; font-weight: 400; text-wrap: balance; }
+.scene-text { margin: 0; max-width: 62ch; min-height: 5.2em; cursor: pointer; }
+.scene-text .caret { display: inline-block; width: .5em; height: 1em; background: var(--accent); vertical-align: -2px; margin-left: 2px; animation: blink .8s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0 } }
+.choices { list-style: none; margin: 20px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.choices li { border-bottom: 1px solid var(--line); }
+.choices.hide { visibility: hidden; }
+.choice {
+  width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 14px 6px 14px 4px;
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: baseline;
+  opacity: 0; transform: translateY(6px); transition: opacity .35s ease, transform .35s ease, background .2s;
+}
+.choices.in .choice { opacity: 1; transform: none; }
+.choices.in li:nth-child(2) .choice { transition-delay: .07s; }
+.choices.in li:nth-child(3) .choice { transition-delay: .14s; }
+.choice .k { font-family: var(--f-mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line); text-align: center; padding: 1px 0; align-self: center; }
+.choice .t { font-size: 18px; font-weight: 500; }
+.choice .arrow { color: var(--accent); transition: transform .2s; }
+.choice:hover:not(:disabled) { background: var(--choice); }
+.choice:hover:not(:disabled) .arrow { transform: translateX(4px); }
+.choice .needs { grid-column: 2 / 3; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.choice .need { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.choice .need.missing { color: var(--muted); text-decoration: line-through; }
+.choice:disabled { cursor: default; }
+.choices.done li:not(.picked) .choice { opacity: .28; }
+.picked .choice { background: var(--choice); }
+.outcome { background: var(--choice); padding: 4px 16px 18px 44px; border-top: 1px dashed var(--line); }
+.outcome p { margin: 10px 0 0; max-width: 60ch; font-style: italic; }
+.effects { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.fx { font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border: 1px solid currentColor; }
+.fx.gain { color: var(--good); }
+[data-mood="day"] .fx.gain, [data-mood="golden"] .fx.gain { color: #2f7a2a; }
+.fx.hurt { color: var(--danger); }
+.fx.dead { color: #fff; background: var(--danger); border-color: var(--danger); }
+.outcome .btn { margin-top: 16px; }
+
+/* ---------- overlays ---------- */
+.overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px 16px; overflow: auto; }
+.screen { background: #050101; color: #f2d8d2; }
+.screen .inner { max-width: 600px; width: 100%; text-align: left; }
+.screen h2 { font-family: var(--f-display); font-size: var(--s4); line-height: .95; margin: 8px 0 14px; color: var(--danger); text-wrap: balance; }
+.screen.ending { background: radial-gradient(90% 60% at 50% 0%, #2a2014, #050403); color: #f2ead8; }
+.screen.ending h2 { color: #f3d27a; }
+.screen.ending.bad h2 { color: var(--danger); }
+.screen .kind { color: #b88a84; }
+.screen.ending .kind { color: #c9b48a; }
+.screen p { font-size: 17px; }
+.screen .art { aspect-ratio: 2 / 1; overflow: hidden; border: 1px solid #2a2018; margin: 14px 0 6px; }
+.screen .art svg { width: 100%; height: 100%; display: block; }
+.screen .stats { color: #9b8c86; margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+.screen .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.screen .btn { --accent: #e0473a; color: #fff; }
+.screen.ending .btn { --accent: #e0b25a; color: #140c05; }
+.screen .btn.ghost { color: var(--accent); }
+.found { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.found div { border: 1px solid #2a2018; padding: 6px 8px; font-size: 13.5px; color: #6f6458; }
+.found div.yes { color: #f3d27a; border-color: #5a4628; }
+.found div small { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #8a7a68; }
+
+#scare { z-index: 90; background: #000; padding: 0; pointer-events: none; }
+#scare .face { position: absolute; inset: 0; }
+#scare .face svg { width: 100%; height: 100%; display: block; }
+#scare.go .face { animation: lunge .9s cubic-bezier(.2, .9, .2, 1) both, shake .09s linear 8; }
+#scare.go::after { content: ''; position: absolute; inset: 0; background: #ff1a10; mix-blend-mode: multiply; animation: flash .9s steps(2) both; }
+@keyframes lunge { 0% { transform: scale(.4); opacity: 0 } 12% { transform: scale(1.18); opacity: 1 } 100% { transform: scale(1.05); opacity: 1 } }
+@keyframes shake { 0% { translate: 0 0 } 25% { translate: 8px -6px } 50% { translate: -7px 5px } 75% { translate: 6px 7px } 100% { translate: 0 0 } }
+@keyframes flash { 0% { opacity: .0 } 30% { opacity: .6 } 60% { opacity: 0 } 100% { opacity: .3 } }
+#scare.fade { transition: opacity .45s; opacity: 0; }
+.hurtflash { position: fixed; inset: 0; z-index: 70; pointer-events: none; box-shadow: inset 0 0 160px 40px rgba(220,20,10,.75); animation: hf .7s ease forwards; }
+@keyframes hf { from { opacity: 1 } to { opacity: 0 } }
+
+@media (max-width: 640px) {
+  .story { grid-template-columns: minmax(0, 1fr); }
+  .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #home .hero { grid-template-columns: minmax(0, 1fr); }
+  .door { width: 56px; height: 90px; }
+  .scene-img { aspect-ratio: 16 / 10; }
+  .choice .t { font-size: 17px; }
+  .outcome { padding-left: 16px; }
+  .hud { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  #scare.go .face { animation: none; }
+}
+</style>
+</head>
+<body>
+<script>document.body.dataset.mood="night"</script>
+
+
+<main id="home" class="wrap">
+  <header class="hero">
+    <div class="door" aria-hidden="true"></div>
+    <h1 class="brand">Nightdoor<small>Interactive horror stories. Every choice opens a door. Some of them don't open back.</small></h1>
+  </header>
+
+  <div class="shelf-label mono"><span>Choose a story</span><span id="shelfCount"></span></div>
+  <section class="shelf" id="shelf"></section>
+
+  <section class="rules" aria-label="How to play">
+    <div><b>Three ways forward</b><span>Each scene gives you three choices. Press 1, 2 or 3, or tap.</span></div>
+    <div><b>Three candles</b><span>Bad moves blow out a candle. Lose all three and you start again.</span></div>
+    <div><b>Pockets</b><span>Pick things up. Some doors only open for the right item.</span></div>
+    <div><b>Some choices are final</b><span>A few decisions end the story on the spot. Back to the start.</span></div>
+  </section>
+  <p class="note">Contains jump scares, creepy sound and monsters. Best played with headphones, lights off.</p>
+</main>
+
+<main id="play" class="wrap" hidden>
+  <div class="hud">
+    <button class="back mono" id="backBtn" type="button">← Doors</button>
+    <span class="mono" id="attempt" style="color:var(--muted)"></span>
+    <span class="clock" id="clock">SAT 10:02</span>
+    <div class="lives" id="lives" aria-label="Lives"></div>
+    <button class="snd mono" id="sndBtn" type="button" aria-pressed="true">Sound on</button>
+  </div>
+  <div class="inv" id="inv" aria-label="Your pockets"></div>
+  <article class="page" id="page">
+    <div class="scene-img" id="sceneImg"><span class="act mono" id="act"></span></div>
+    <h2 class="scene-title" id="title"></h2>
+    <p class="scene-text" id="text" title="Tap to skip"></p>
+    <ol class="choices" id="choices"></ol>
+  </article>
+</main>
+
+<div id="screen" class="overlay screen" hidden></div>
+<div id="scare" class="overlay" hidden><div class="face"></div></div>
+
+<script src="js/art.js"></script>
+<script src="stories/primrose-close.js"></script>
+<script src="js/art-hollowmere.js"></script>
+<script src="stories/hollowmere.js"></script>
+<script src="js/art-goodboy.js"></script>
+<script src="stories/good-boy.js"></script>
+<script src="js/art-cairn.js"></script>
+<script src="stories/cairn.js"></script>
+<script src="js/engine.js"></script>
+
+</body></html>
