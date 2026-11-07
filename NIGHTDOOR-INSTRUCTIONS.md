@@ -1,7 +1,7 @@
 # Nightdoor: project instructions
 
 ## What this is
-Nightdoor is a browser-based, choose-your-path horror game: a homepage "shelf" of stories, each played one illustrated scene at a time. It runs offline from index.html and will eventually be published online.
+Nightdoor is a browser-based, choose-your-path horror game: a homepage "shelf" of stories, each played one illustrated scene at a time. It runs offline from index.html and is live at https://nightdoor.vercel.app.
 
 ## Where the files live
 - The master copy is always on my computer at: C:\claude\creative\nightdoor\nightdoor
@@ -54,15 +54,18 @@ Each story registers itself as NIGHTDOOR.stories['<id>'] with:
   - routing node: { route: [ { need: [...], next }, …, { next: fallback } ] } picks an ending from the items/flags held
   - ending node: { title, time, mood, img, text, end: { kind: 'best' | 'good' | 'survivor' | 'bad', label } }
 
-## Getting ready to go online
-The game will be uploaded to a web server so people can play it online (hosting details to follow). Keep it server-ready:
-- Plain static files only (HTML, JS, no build step, no server code), so the whole folder can be uploaded as it is
-- Relative paths only (js/…, stories/…); never use absolute paths or file:// links
-- Lower-case, hyphenated file names with no spaces (servers are case-sensitive)
-- Keep external links to Google Fonts only; everything else is self-contained
-- Progress saves in the browser's localStorage, so it must always fail safely
-- Each story is its own pair of files, so stories can be added one at a time without touching the others
-- When hosting details arrive: add proper page titles and descriptions, a favicon, share images, and per-story links for sharing
+## Hosting (live)
+- Live site: https://nightdoor.vercel.app (Vercel project "nightdoor" in the Hollyend Vercel account, Hobby plan)
+- Code: GitHub repo c14kaa/nightdoor (public), branch main. Vercel redeploys automatically on every push to main, usually within a minute.
+- After any change: save it to the folder on my computer AND commit and push it to c14kaa/nightdoor main, so the folder, the repo and the live site always match. Republish the preview link too.
+- Static site, no build step (Vercel preset "Other", root ./). vercel.json sets clean URLs and stops browsers caching old story files.
+- Keep it server-ready:
+  - Plain static files only (HTML, JS, no server code)
+  - Relative paths only (js/…, stories/…); never absolute paths or file:// links
+  - Lower-case, hyphenated file names with no spaces (the server is case-sensitive)
+  - External links to Google Fonts only; everything else self-contained
+  - Progress saves in the browser's localStorage, so it must always fail safely
+- index.html has a proper <head>: title, description, share (og:) tags and a door favicon. Still to do when wanted: share images and per-story links.
 
 ## Adding a new story
 1. Write stories/<id>.js in the format above, plus js/art-<id>.js for its scenes, cover and jump scares (built from the shared toolkit in ART.lib)
@@ -73,4 +76,4 @@ The game will be uploaded to a web server so people can play it online (hosting 
    - the art renders, and a quick gallery of scenes looks right
    - automated random playthroughs in a browser throw no errors, and a scripted run reaches every ending
    - text never assumes the player picked up an item they might not have
-5. Save to the folder, republish the preview link, and give me a short summary of the story, items, endings and scares
+5. Save to the folder, push to GitHub (which updates the live site), republish the preview link, and give me a short summary of the story, items, endings and scares
