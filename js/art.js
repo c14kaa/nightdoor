@@ -905,16 +905,7 @@
     s += K.vignette(.8) + K.grain(.18);
     return K.done(s);
   };
-  S.cover_ward9 = () => {
-    const K = kit();
-    let s = `<rect width="800" height="400" fill="#050806"/>`;
-    for (let i = 0; i < 8; i++) { const k = 1 - i * .12; s += `<rect x="${f(400 - 380 * k)}" y="${f(200 - 190 * k)}" width="${f(760 * k)}" height="${f(380 * k)}" fill="none" stroke="#1c2a22" stroke-width="${f(4 * k)}"/>`; }
-    s += `<rect x="370" y="160" width="60" height="70" fill="#b8ffd0" opacity=".25"/><rect x="380" y="40" width="40" height="6" fill="#d0ffe0" opacity=".8"/>`;
-    s += `<text x="400" y="150" font-family="Georgia,serif" font-size="16" fill="#9fe0b0" text-anchor="middle" opacity=".7">WARD 9</text>`;
-    s += harrow(400, 230, 60, { c: '#000', smile: '#000' });
-    s += K.vignette(.85) + K.grain(.2);
-    return K.done(s);
-  };
+  /* cover_ward9 lives in art-ward9.js */
 
   /* shared toolkit so other story art files can add their own drawings */
   const LIB = { kit, f, mix, shade, rng, qb, hex2rgb, tree, dog, gnome, grinMouth, slackMouth, splitMouth, humMouth, person, at, harrow, house, S, SC, SVB };

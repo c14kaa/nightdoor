@@ -12,8 +12,8 @@
     { id: 'good-boy' },
     { id: 'cairn' },
     { id: 'signed-out' },
-    { id: 'gull-rock', soon: true, title: 'The Keeper of Gull Rock', cover: 'cover_gullrock', tagline: 'The light must never go out. Something in the sea is counting on it.', blurb: 'A winter posting to a lighthouse eleven miles from shore. The last keeper left a logbook, and a list of rules written in a shaking hand.' },
-    { id: 'ward-9', soon: true, title: 'Signal from Ward 9', cover: 'cover_ward9', tagline: 'The hospital closed in 1974. The night nurse is still doing her rounds.', blurb: 'A pager goes off in an abandoned hospital at 3:03 every morning. Tonight, you answer it.' }
+    { id: 'ward-9' },
+    { id: 'gull-rock', soon: true, title: 'The Keeper of Gull Rock', cover: 'cover_gullrock', tagline: 'The light must never go out. Something in the sea is counting on it.', blurb: 'A winter posting to a lighthouse eleven miles from shore. The last keeper left a logbook, and a list of rules written in a shaking hand.' }
   ];
 
   /* ---------- storage (best-effort) ---------- */
@@ -118,7 +118,28 @@
     beep() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc('square', 1320, t, .07, .05); },
     buzz() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc('sawtooth', 120, t, .35, .18); this.osc('square', 123, t, .35, .08); },
     heart() { if (!this.ctx) return; const t = this.ctx.currentTime; this.osc('sine', 62, t, .18, .7, null, 40); this.osc('sine', 58, t + .2, .2, .55, null, 38); },
-    play(name) { if (!this.ctx || !this.on) return; ({ van: () => this.tune(false), vanSlow: () => this.tune(true), knock: () => this.knock(), heart: () => this.heart(), bell: () => this.bell(3), thunder: () => this.thunder(), scratch: () => this.scratch(), growl: () => this.growl(), stones: () => this.stones(), alarm: () => this.alarm(), tap: () => this.tap(), handle: () => this.handle() })[name]?.(); },
+    pager() {
+      if (!this.ctx) return; const t0 = this.ctx.currentTime + .1;
+      for (let k = 0; k < 4; k++) for (let j = 0; j < 3; j++) { const t = t0 + k * .9 + j * .14; this.osc('square', 2900, t, .09, .06); this.osc('square', 2350, t + .07, .06, .04); }
+    },
+    breath(dur = 2.2, vol = .5) {
+      if (!this.ctx) return; const c = this.ctx, t = c.currentTime;
+      const n = this.noise(dur + .2), bp = c.createBiquadFilter(), g = c.createGain();
+      bp.type = 'bandpass'; bp.Q.value = .9; bp.frequency.setValueAtTime(380, t); bp.frequency.linearRampToValueAtTime(900, t + dur * .5); bp.frequency.linearRampToValueAtTime(300, t + dur);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + dur * .5); g.gain.linearRampToValueAtTime(0, t + dur);
+      n.connect(bp); bp.connect(g); g.connect(this.master); n.start(t); n.stop(t + dur + .2);
+    },
+    ward() { if (!this.ctx) return; [0, 2.4, 4.8].forEach(dt => setTimeout(() => this.on && this.breath(2.2, .45), dt * 1000)); },
+    watch(fast) {
+      if (!this.ctx) return; const c = this.ctx, gap = fast ? .16 : .5;
+      for (let k = 0; k < (fast ? 24 : 10); k++) { const t = c.currentTime + .2 + k * gap; this.osc('square', k % 2 ? 4100 : 3600, t, .018, .07); this.osc('sine', 1800, t, .02, .04); }
+    },
+    trolley() {
+      if (!this.ctx) return; const c = this.ctx;
+      [0, .9, 1.6, 2.6, 3.3].forEach((dt, i) => { const t = c.currentTime + .2 + dt; this.osc('sine', 1900 + i * 60, t, .35, .05, null, 2400 + i * 40); this.osc('triangle', 2700, t + .05, .25, .03, null, 3100); });
+    },
+
+    play(name) { if (!this.ctx || !this.on) return; ({ van: () => this.tune(false), vanSlow: () => this.tune(true), knock: () => this.knock(), heart: () => this.heart(), bell: () => this.bell(3), thunder: () => this.thunder(), scratch: () => this.scratch(), growl: () => this.growl(), stones: () => this.stones(), alarm: () => this.alarm(), tap: () => this.tap(), handle: () => this.handle(), pager: () => this.pager(), ward: () => this.ward(), watch: () => this.watch(false), watchFast: () => this.watch(true), trolley: () => this.trolley() })[name]?.(); },
     setMood(mood) {
       if (!this.ctx || mood === this.droneMood) return; this.droneMood = mood;
       const c = this.ctx, t = c.currentTime;
@@ -163,7 +184,7 @@
       let meta = '', actions = '';
       if (st) {
         live++;
-        const scenes = Object.values(st.nodes).filter(n => n.choices).length;
+        const scenes = Object.values(st.nodes).filter(n => !n.end && !n.route).length;
         const ends = allEndings(st), found = endingsFound(st.id);
         const saved = store.get('save.' + st.id, null);
         meta = `<div class="meta mono"><span>${scenes} scenes</span><span>${ends.length} endings · ${found.length} found</span><span>${st.lives} lives</span></div>`;
@@ -234,7 +255,7 @@
   }
 
   function renderNode(n, id) {
-    const same = lastNode === id; lastNode = id; busy = false; stopTimer();
+    const same = lastNode === id; lastNode = id; busy = false; stopTimer(); stopMech();
     document.body.dataset.mood = n.mood || 'night';
     SND.setMood(n.mood || 'night');
     const frozen = new RegExp(story.frozen || '^20:13$').test(n.time || '');
@@ -255,8 +276,9 @@
     const ix = $('interact'); ix.innerHTML = ''; ix.className = 'interact hide';
     if (n.search) buildSearch(n, id);
     if (n.code) buildCode(n, id, same);
+    const M = MECH.find(k => n[k]); if (M) buildMech(M, n);
     if (!same) window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
-    const reveal = () => { ch.classList.remove('hide'); ix.classList.remove('hide'); requestAnimationFrame(() => ch.classList.add('in')); if (n.timer) startTimer(n); };
+    const reveal = () => { ch.classList.remove('hide'); ix.classList.remove('hide'); requestAnimationFrame(() => ch.classList.add('in')); if (n.timer) startTimer(n); if (mech) mech.start(); };
     const afterScare = () => typeText($('text'), n.text, same ? 0 : 1, reveal);
     if (n.sfx) SND.play(n.sfx);
     if (n.scare && !same) { $('text').textContent = ''; scare(n.scare, afterScare); } else afterScare();
@@ -281,7 +303,7 @@
     const c = n.choices[idx];
     const ok = !c.need || has(c.need);
     const r = ok ? c : Object.assign({}, c.fail || {});
-    lockChoices(); stopTimer();
+    lockChoices(); stopTimer(); stopMech();
     li.classList.add('picked');
     const host = n.doors ? outHost() : li;
     const go = () => resolve(r, host);
@@ -339,7 +361,7 @@
       fill.style.width = (left / secs * 100) + '%'; num.textContent = Math.ceil(left);
       bar.classList.toggle('urgent', left < Math.min(4, secs / 3));
       if (Math.ceil(left) !== Math.ceil(left + .1) && SND.on) SND.tick(left < 4);
-      if (left <= 0) { stopTimer(); if (busy) return; busy = true; lockChoices(); const r = n.timeout || {}; const host = outHost(); const go = () => resolve(r, host); r.scare ? scare(r.scare, go) : go(); }
+      if (left <= 0) { stopTimer(); if (busy) return; stopMech(); busy = true; lockChoices(); const r = n.timeout || {}; const host = outHost(); const go = () => resolve(r, host); r.scare ? scare(r.scare, go) : go(); }
     }, 100);
   }
 
@@ -419,7 +441,7 @@
       if (busy) return; SND.init();
       const guess = letters ? $('cin').value : val; if (!norm(guess)) return;
       if (arr(cd.answer).map(norm).includes(norm(guess))) {
-        busy = true; box.classList.add('right'); lockChoices(); stopTimer(); if (SND.on) SND.chime();
+        busy = true; box.classList.add('right'); lockChoices(); stopTimer(); stopMech(); if (SND.on) SND.chime();
         const r = cd.ok || {}; const go = () => resolve(r, box); setTimeout(() => r.scare ? scare(r.scare, go) : go(), 450); return;
       }
       S.tries[id]--; save();
@@ -442,6 +464,150 @@
   }
   let codeKey = null;
 
+  /* ---------- action puzzles: hold, breathe (rhythm), sweep (dodge the light), mash ----------
+     Each lives on a node as hold: {...} | breathe: {...} | sweep: {...} | mash: {...} with ok: {o,next,gain,…}
+     and fail: {o,next,dmg,scare,fatal,…}. They start when the scene text has finished, and are cancelled
+     when the scene changes. Space / Enter or tapping the big button drives them. */
+  const MECH = ['hold', 'breathe', 'sweep', 'mash'];
+  let mech = null;
+  function stopMech() { if (mech) { const m = mech; mech = null; try { m.stop(); } catch (e) { } } }
+  function mechEnd(r, box, won) {
+    if (busy) return; busy = true;
+    const m = mech; mech = null; if (m) try { m.stop(); } catch (e) { }
+    lockChoices(); stopTimer();
+    box.classList.add(won ? 'won' : 'lost');
+    if (SND.on) won ? SND.chime() : SND.buzz();
+    const go = () => resolve(r || {}, box); setTimeout(() => r && r.scare ? scare(r.scare, go) : go(), 350);
+  }
+  function loop(fn) { let id = 0, last = performance.now(), on = true; const tick = now => { if (!on) return; const dt = Math.min(.1, (now - last) / 1000); last = now; fn(dt); if (on) id = requestAnimationFrame(tick); }; id = requestAnimationFrame(tick); return () => { on = false; cancelAnimationFrame(id); }; }
+
+  function buildMech(kind, n) {
+    const cfg = n[kind], box = document.createElement('div'); box.className = 'mech mech-' + kind;
+    $('interact').appendChild(box);
+    const prompt = `<div class="mono clabel">${cfg.prompt || ''}</div>`;
+    const status = t => { const el = box.querySelector('.mstat'); if (el) el.innerHTML = t; };
+    let stopLoop = null, started = false;
+    const M = { kind, box, start() { }, stop() { stopLoop && stopLoop(); }, key: null };
+
+    if (kind === 'hold') {
+      /* press and hold for `secs`; let go early, or fail to start within `grace`, and you're heard */
+      const secs = cfg.secs || 6, grace = cfg.grace || 3, lines = cfg.lines || [];
+      box.innerHTML = `${prompt}<div class="hbar"><i></i></div><button type="button" class="hbtn">${cfg.label || 'Hold your breath'}</button><p class="mstat mono">Press and hold. Don’t let go.</p>`;
+      const fill = box.querySelector('.hbar i'), btn = box.querySelector('.hbtn');
+      let held = false, prog = 0, wait = 0, beat = 0, shown = -1;
+      const down = () => { if (!started || busy || held) return; held = true; btn.classList.add('on'); status('Holding…'); };
+      const up = () => { if (!started || busy || !held) return; held = false; btn.classList.remove('on'); if (prog < 1) mechEnd(cfg.fail, box); };
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (x) { } down(); });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => btn.addEventListener(ev, up));
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+      M.key = (isDown, e) => { if (!started) return false; if (e && e.repeat) return true; isDown ? down() : up(); return true; };
+      M.start = () => {
+        started = true; btn.classList.add('ready');
+        stopLoop = loop(dt => {
+          if (busy) return;
+          if (!held) { wait += dt; fill.style.width = '0%'; status(`Press and hold. ${Math.max(0, Math.ceil(grace - wait))}…`); if (wait >= grace) mechEnd(cfg.late || cfg.fail, box); return; }
+          prog = Math.min(1, prog + dt / secs); fill.style.width = (prog * 100) + '%';
+          beat += dt; const rate = .9 - prog * .55; if (beat > rate) { beat = 0; SND.on && SND.heart(); }
+          const li = Math.floor(prog * lines.length); if (li !== shown && li < lines.length) { shown = li; status(lines[li]); }
+          box.classList.toggle('shake', prog > .55);
+          if (prog >= 1) { held = false; btn.classList.remove('on'); mechEnd(cfg.ok, box, true); }
+        });
+      };
+    }
+
+    if (kind === 'breathe') {
+      /* tap at the top of each breath, in time with the ward. On a held breath ("they stop"), don't tap at all. */
+      const beats = cfg.beats || 8, need = cfg.need || beats - 2, base = cfg.period || 2.4, holds = cfg.holds || [];
+      const plan = Array.from({ length: beats }, (_, i) => ({ p: base * (1 + (cfg.drift ? (Math.random() - .5) * cfg.drift : 0)), hold: holds.includes(i) }));
+      box.innerHTML = `${prompt}<div class="lungs"><div class="ring"></div><div class="core"></div><span class="mono rlab">in</span></div><div class="dots">${plan.map(b => `<i class="${b.hold ? 'h' : ''}"></i>`).join('')}</div><button type="button" class="hbtn">${cfg.label || 'Breathe'}</button><p class="mstat mono">Tap as the ring fills: at the top of each breath. When they stop, you stop.</p>`;
+      const ring = box.querySelector('.ring'), lab = box.querySelector('.rlab'), dots = box.querySelectorAll('.dots i'), btn = box.querySelector('.hbtn');
+      let i = 0, t = 0, hits = 0, miss = 0, tapped = false, breathed = false;
+      const tol = cfg.tol || .2;
+      const mark = (ok, why) => { dots[i].classList.add(ok ? 'ok' : 'x'); ok ? hits++ : miss++; if (!ok) { SND.on && SND.buzz(); box.classList.remove('flinch'); void box.offsetWidth; box.classList.add('flinch'); status(why); } else status(plan[i].hold ? 'Still. Good.' : 'In time with them.'); };
+      const tap = () => {
+        if (!started || busy || i >= beats || tapped) return; tapped = true;
+        const b = plan[i], ph = t / b.p;
+        if (b.hold) return mark(false, 'They stopped. You didn’t.');
+        mark(Math.abs(ph - .5) < tol, ph < .5 ? 'Too soon.' : 'Too late.');
+        check();
+      };
+      const check = () => { if (miss > beats - need) mechEnd(cfg.fail, box); };
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); tap(); });
+      M.key = (isDown, e) => { if (!started) return false; if (isDown && !(e && e.repeat)) tap(); return true; };
+      M.start = () => {
+        started = true;
+        stopLoop = loop(dt => {
+          if (busy || i >= beats) return;
+          const b = plan[i]; t += dt; const ph = Math.min(1, t / b.p);
+          if (!breathed) { breathed = true; if (!b.hold && SND.on) SND.breath(b.p, .4); }
+          const sc = b.hold ? .42 : .42 + .58 * Math.sin(ph * Math.PI);
+          ring.style.transform = `scale(${sc.toFixed(3)})`;
+          ring.classList.toggle('peak', !b.hold && Math.abs(ph - .5) < tol);
+          box.classList.toggle('held', b.hold);
+          lab.textContent = b.hold ? 'stop' : ph < .5 ? 'in' : 'out';
+          if (t >= b.p) {
+            if (!tapped) b.hold ? mark(true) : mark(false, 'You missed a breath.');
+            if (busy) return;
+            check(); if (busy) return;
+            i++; t = 0; tapped = false; breathed = false;
+            if (i >= beats) mechEnd(hits >= need ? cfg.ok : cfg.fail, box, hits >= need);
+          }
+        });
+      };
+    }
+
+    if (kind === 'sweep') {
+      /* cross from cover to cover; only move while the beam is somewhere else. It reverses and pauses at random. */
+      const moves = cfg.moves || 5, slots = moves + 1, secs = cfg.secs || 40, w = cfg.width || .11;
+      let speed = cfg.speed || .32, pos = .98, dir = -1, pause = 0, next = 1.2, i = 0, moving = 0, from = 0, left = secs, me = (.5) / slots;
+      const covers = Array.from({ length: slots }, (_, k) => `<span class="cov${k === slots - 1 ? ' goal' : ''}" style="left:${(k + .5) / slots * 100}%">${k === slots - 1 ? (cfg.goal || 'Here') : (cfg.cover || '')}</span>`).join('');
+      box.innerHTML = `${prompt}<div class="lane"><i class="beam"></i>${covers}<b class="me"></b></div><div class="srow"><button type="button" class="hbtn">${cfg.label || 'Move'}</button><span class="mono sinfo"></span></div><p class="mstat mono">Move only when the light is away from you.</p>`;
+      const beam = box.querySelector('.beam'), meEl = box.querySelector('.me'), btn = box.querySelector('.hbtn'), info = box.querySelector('.sinfo');
+      const draw = () => { beam.style.left = (pos * 100) + '%'; beam.style.width = (w * 200) + '%'; meEl.style.left = (me * 100) + '%'; info.textContent = `${i} of ${moves} · ${Math.ceil(left)}s`; };
+      const go = () => { if (!started || busy || moving) return; moving = .42; from = me; SND.on && SND.tick(); };
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); go(); });
+      M.key = (isDown, e) => { if (!started) return false; if (isDown && !(e && e.repeat)) go(); return true; };
+      draw();
+      M.start = () => {
+        started = true;
+        stopLoop = loop(dt => {
+          if (busy) return;
+          left -= dt; if (left <= 0) return mechEnd(cfg.late || cfg.fail, box);
+          next -= dt; if (next <= 0) { next = .9 + Math.random() * 1.6; const r = Math.random(); if (r < .3) dir *= -1; else if (r < .5) { pause = .5 + Math.random() * .9; status(cfg.pauseText || 'The light stops. Listening.'); } else if (r < .62) speed = (cfg.speed || .32) * (1.25 + Math.random() * .4); else speed = cfg.speed || .32; }
+          if (pause > 0) pause -= dt; else { pos += dir * speed * dt; if (pos < .02) { pos = .02; dir = 1; } if (pos > .98) { pos = .98; dir = -1; } }
+          if (moving) {
+            moving = Math.max(0, moving - dt); const to = (i + 1.5) / slots; me = from + (to - from) * (1 - moving / .42);
+            if (Math.abs(pos - me) < w) { draw(); box.classList.add('lit'); return mechEnd(cfg.fail, box); }
+            if (!moving) { i++; me = to; status(i >= moves ? '' : 'In cover. Wait for it.'); if (i >= moves) { draw(); return mechEnd(cfg.ok, box, true); } }
+          }
+          box.classList.toggle('near', Math.abs(pos - me) < w * 2.2);
+          draw();
+        });
+      };
+    }
+
+    if (kind === 'mash') {
+      /* hammer the button: the bar fills with every tap and drains on its own */
+      const taps = cfg.taps || 18, secs = cfg.secs || 5, drain = cfg.drain == null ? .14 : cfg.drain;
+      box.innerHTML = `${prompt}<div class="hbar"><i></i></div><button type="button" class="hbtn">${cfg.label || 'Pull'}</button><p class="mstat mono">Tap as fast as you can. Space works too.</p>`;
+      const fill = box.querySelector('.hbar i'), btn = box.querySelector('.hbtn');
+      let v = 0, left = secs;
+      const hit = () => { if (!started || busy) return; v = Math.min(1, v + 1 / taps); btn.classList.remove('bump'); void btn.offsetWidth; btn.classList.add('bump'); SND.on && SND.tick(true); if (v >= 1) mechEnd(cfg.ok, box, true); };
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); hit(); });
+      M.key = (isDown, e) => { if (!started) return false; if (isDown && !(e && e.repeat)) hit(); return true; };
+      M.start = () => {
+        started = true; btn.classList.add('ready');
+        stopLoop = loop(dt => {
+          if (busy) return;
+          left -= dt; v = Math.max(0, v - drain * dt); fill.style.width = (v * 100) + '%';
+          status(`${Math.max(0, left).toFixed(1)}s`);
+          if (left <= 0) mechEnd(cfg.fail, box);
+        });
+      };
+    }
+    mech = M;
+  }
+
   function hurt() { SND.hurt(); const d = document.createElement('div'); d.className = 'hurtflash'; document.body.appendChild(d); setTimeout(() => d.remove(), 800); if (navigator.vibrate) try { navigator.vibrate(120); } catch (e) { } }
 
   function scare(key, then) {
@@ -454,7 +620,7 @@
 
   /* ---------- death + endings ---------- */
   function showDeath(r, fatal) {
-    stopTimer();
+    stopTimer(); stopMech();
     SND.setMood('night'); SND.death();
     const n = story.nodes[S.node]; S.deaths++;
     const deaths = S.deaths; const steps = S.steps;
@@ -470,7 +636,7 @@
   }
 
   function showEnding(id, n) {
-    stopTimer();
+    stopTimer(); stopMech();
     const found = endingsFound(story.id); if (!found.includes(id)) { found.push(id); store.set('endings.' + story.id, found); }
     const bad = n.end.kind === 'bad';
     document.body.dataset.mood = n.mood || 'day'; SND.setMood(bad ? 'night' : 'day'); bad ? SND.death() : SND.chime();
@@ -489,16 +655,20 @@
   }
 
   /* ---------- wiring ---------- */
-  $('backBtn').addEventListener('click', () => { stopTimer(); save(); renderHome(); });
+  $('backBtn').addEventListener('click', () => { stopTimer(); stopMech(); save(); renderHome(); });
   $('sndBtn').addEventListener('click', () => { SND.init(); SND.setOn(!SND.on); renderHud(); if (SND.on && story) SND.setMood((story.nodes[S.node] || {}).mood); });
   document.addEventListener('keydown', e => {
     if ($('play').hidden || !$('screen').hidden || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target && e.target.tagName === 'INPUT') return;
     const kp = document.getElementById('codeKeys');
     if (kp && !busy && codeKey) { if (/^[0-9]$/.test(e.key)) { codeKey(e.key); return; } if (e.key === 'Backspace') { codeKey('⌫'); return; } if (e.key === 'Enter') { codeKey('✓'); return; } }
+    if ((e.key === ' ' || e.key === 'Enter') && mech && mech.key && !busy && mech.key(true, e)) { e.preventDefault(); return; }
     if (['1', '2', '3', '4'].includes(e.key)) { const b = document.querySelectorAll('#choices .choice')[+e.key - 1]; if (b && !b.disabled && $('choices').classList.contains('in')) b.click(); else if (typing && finishTyping) finishTyping(); }
     if ((e.key === ' ' || e.key === 'Enter') && typing && finishTyping && document.activeElement === document.body) { e.preventDefault(); finishTyping(); }
   });
+
+  document.addEventListener('keyup', e => { if ((e.key === ' ' || e.key === 'Enter') && mech && mech.key) mech.key(false, e); });
+  window.addEventListener('blur', () => { if (mech && mech.key) mech.key(false, {}); });
 
   /* keep a game in progress across live page updates */
   window.claude?.hot?.snapshot?.(() => ({ S, storyId: story && story.id, inPlay: !$('play').hidden }));
