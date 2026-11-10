@@ -126,6 +126,22 @@ button { font: inherit; color: inherit; }
 @keyframes dim { 0%,100% { filter: brightness(1) } 47% { filter: brightness(1) } 48% { filter: brightness(.55) } 49% { filter: brightness(1) } 51% { filter: brightness(.7) } 52% { filter: brightness(1) } }
 [data-mood="blood"] .scene-img::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 90px rgba(255,40,30,.45); animation: pulse 1.1s ease-in-out infinite; pointer-events: none; }
 @keyframes pulse { 0%,100% { opacity: .4 } 15% { opacity: 1 } 30% { opacity: .5 } 45% { opacity: .9 } }
+.scene-img .alerts { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: min(92%, 420px); display: flex; flex-direction: column; gap: 6px; z-index: 3; }
+.ealert { all: unset; box-sizing: border-box; display: flex; gap: 10px; align-items: flex-start; width: 100%; padding: 9px 12px; border-radius: 14px; background: rgba(28,28,32,.94); color: #f4f4f6; font: 13px/1.3 system-ui, -apple-system, 'Segoe UI', sans-serif; box-shadow: 0 6px 24px #000a; cursor: pointer; animation: ealIn .45s cubic-bezier(.2,.9,.3,1.3) both; border-left: 5px solid #e8322a; }
+.ealert .ico { flex: none; width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; background: #e8322a; color: #fff; font-weight: 700; }
+.ealert .txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.ealert b { font-size: 12px; letter-spacing: .02em; }
+.ealert i { font-style: normal; font-size: 11px; color: #ff8a80; text-transform: uppercase; letter-spacing: .06em; }
+.ealert .txt > span { margin-top: 2px; }
+.ealert .when { font-size: 10px; color: #aaa; }
+.ealert.severe { border-left-color: #f0a020; } .ealert.severe .ico { background: #f0a020; } .ealert.severe i { color: #ffc870; }
+.ealert.test { border-left-color: #8a8a90; } .ealert.test .ico { background: #6a6a70; } .ealert.test i { color: #c0c0c6; }
+.ealert.clear { border-left-color: #3cb054; } .ealert.clear .ico { background: #3cb054; } .ealert.clear i { color: #9fe6ad; }
+.ealert.extreme { animation: ealIn .45s cubic-bezier(.2,.9,.3,1.3) both, ealPulse 1s ease-in-out .5s 3; }
+.ealert.gone { opacity: 0; transform: translateY(-12px); transition: .3s; }
+@keyframes ealIn { from { opacity: 0; transform: translateY(-30px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes ealPulse { 50% { box-shadow: 0 0 0 3px #e8322a99, 0 6px 24px #000a; } }
+@media (max-width: 560px) { .ealert { font-size: 11.5px; padding: 7px 9px; } .scene-img .alerts { top: 5px; gap: 4px; } }
 .scene-img .act { position: absolute; left: 10px; bottom: 10px; background: #000b; color: #f3ead8; padding: 4px 8px; }
 .scene-title { font-family: var(--f-title); font-size: var(--s3); line-height: 1.05; margin: 18px 0 8px; font-weight: 400; text-wrap: balance; }
 .scene-text { margin: 0; max-width: 62ch; min-height: 5.2em; cursor: pointer; }
@@ -366,6 +382,8 @@ button { font: inherit; color: inherit; }
 <script src="stories/signed-out.js"></script>
 <script src="js/art-ward9.js"></script>
 <script src="stories/ward-9.js"></script>
+<script src="js/art-leaveitopen.js"></script>
+<script src="stories/leave-it-open.js"></script>
 <script src="js/engine.js"></script>
 
 </body></html>

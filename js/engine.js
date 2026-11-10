@@ -13,6 +13,7 @@
     { id: 'cairn' },
     { id: 'signed-out' },
     { id: 'ward-9' },
+    { id: 'leave-it-open' },
     { id: 'gull-rock', soon: true, title: 'The Keeper of Gull Rock', cover: 'cover_gullrock', tagline: 'The light must never go out. Something in the sea is counting on it.', blurb: 'A winter posting to a lighthouse eleven miles from shore. The last keeper left a logbook, and a list of rules written in a shaking hand.' }
   ];
 
@@ -139,7 +140,28 @@
       [0, .9, 1.6, 2.6, 3.3].forEach((dt, i) => { const t = c.currentTime + .2 + dt; this.osc('sine', 1900 + i * 60, t, .35, .05, null, 2400 + i * 40); this.osc('triangle', 2700, t + .05, .25, .03, null, 3100); });
     },
 
-    play(name) { if (!this.ctx || !this.on) return; ({ van: () => this.tune(false), vanSlow: () => this.tune(true), knock: () => this.knock(), heart: () => this.heart(), bell: () => this.bell(3), thunder: () => this.thunder(), scratch: () => this.scratch(), growl: () => this.growl(), stones: () => this.stones(), alarm: () => this.alarm(), tap: () => this.tap(), handle: () => this.handle(), pager: () => this.pager(), ward: () => this.ward(), watch: () => this.watch(false), watchFast: () => this.watch(true), trolley: () => this.trolley() })[name]?.(); },
+    creak() {
+      if (!this.ctx) return; const c = this.ctx, t = c.currentTime + .15;
+      /* an old wardrobe door: a slow stick-slip groan that rises, then a dry tick at the end */
+      const o = c.createOscillator(), bp = c.createBiquadFilter(), g = c.createGain(), l = c.createOscillator(), lg = c.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(240, t + 1.6); o.frequency.linearRampToValueAtTime(150, t + 2.3);
+      l.type = 'square'; l.frequency.setValueAtTime(14, t); l.frequency.linearRampToValueAtTime(31, t + 2.2); lg.gain.value = 40; l.connect(lg); lg.connect(o.frequency);
+      bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 2.5;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.32, t + .25); g.gain.setValueAtTime(.3, t + 1.9); g.gain.exponentialRampToValueAtTime(.001, t + 2.4);
+      o.connect(bp); bp.connect(g); g.connect(this.master); o.start(t); l.start(t); o.stop(t + 2.5); l.stop(t + 2.5);
+      const n = this.noise(.05), hp = c.createBiquadFilter(), g2 = c.createGain(); hp.type = 'highpass'; hp.frequency.value = 1500; g2.gain.setValueAtTime(.9, t + 2.45); g2.gain.exponentialRampToValueAtTime(.001, t + 2.5); n.connect(hp); hp.connect(g2); g2.connect(this.master); n.start(t + 2.45);
+    },
+    alertTone() {
+      if (!this.ctx) return; const c = this.ctx, t0 = c.currentTime + .05;
+      /* the phone emergency-alert tone: two clashing pitches, pulsed */
+      [[0, 2], [2.15, .5], [2.75, .5]].forEach(([dt, d]) => { const t = t0 + dt; this.osc('sawtooth', 853, t, d, .09); this.osc('sawtooth', 960, t, d, .09); this.osc('sine', 853, t, d, .12); });
+    },
+    smoke() {
+      if (!this.ctx) return; const t0 = this.ctx.currentTime + .2;
+      for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) this.osc('square', 3150, t0 + k * 1.4 + j * .32, .2, .05);
+    },
+
+    play(name) { if (!this.ctx || !this.on) return; ({ van: () => this.tune(false), vanSlow: () => this.tune(true), knock: () => this.knock(), heart: () => this.heart(), bell: () => this.bell(3), thunder: () => this.thunder(), scratch: () => this.scratch(), growl: () => this.growl(), stones: () => this.stones(), alarm: () => this.alarm(), tap: () => this.tap(), handle: () => this.handle(), pager: () => this.pager(), ward: () => this.ward(), watch: () => this.watch(false), watchFast: () => this.watch(true), trolley: () => this.trolley(), creak: () => this.creak(), alert: () => this.alertTone(), smoke: () => this.smoke(), creakAlarm: () => { this.creak(); setTimeout(() => this.on && this.alarm(), 1600); } })[name]?.(); },
     setMood(mood) {
       if (!this.ctx || mood === this.droneMood) return; this.droneMood = mood;
       const c = this.ctx, t = c.currentTime;
@@ -164,7 +186,7 @@
 
   /* ---------- state ---------- */
   let story = null, S = null, typing = null, lastNode = null, busy = false;
-  const fresh = (st, deaths = 0) => ({ storyId: st.id, node: st.start, lives: st.lives, inv: [], deaths, steps: 0 });
+  const fresh = (st, deaths = 0) => ({ storyId: st.id, node: st.start, lives: st.lives, inv: (st.startInv || []).slice(), deaths, steps: 0 });
   const has = need => arr(need).every(i => S.inv.includes(i));
   const item = id => story.items[id] || { name: id, icon: '•' };
   const save = () => { if (S) store.set('save.' + S.storyId, S); };
@@ -281,7 +303,28 @@
     const reveal = () => { ch.classList.remove('hide'); ix.classList.remove('hide'); requestAnimationFrame(() => ch.classList.add('in')); if (n.timer) startTimer(n); if (mech) mech.start(); };
     const afterScare = () => typeText($('text'), n.text, same ? 0 : 1, reveal);
     if (n.sfx) SND.play(n.sfx);
+    if (n.alert && !same) showAlerts(n.alert);
     if (n.scare && !same) { $('text').textContent = ''; scare(n.scare, afterScare); } else afterScare();
+  }
+
+
+  /* ---------- phone emergency alerts: node.alert = { kind, text } or an array of them ----------
+     kind: 'extreme' (red), 'severe' (amber), 'test' (grey), 'clear' (green); optional head overrides the title. */
+  function showAlerts(list) {
+    const host = $('sceneImg'); let wrap = host.querySelector('.alerts');
+    if (!wrap) { wrap = document.createElement('div'); wrap.className = 'alerts'; host.appendChild(wrap); }
+    arr(list).forEach((a, i) => setTimeout(() => {
+      if (!host.contains(wrap)) return;
+      const kind = a.kind || 'extreme';
+      const head = a.head || ({ extreme: 'Extreme threat', severe: 'Severe threat', test: 'Test alert', clear: 'All clear' })[kind] || 'Emergency alert';
+      const el = document.createElement('button'); el.type = 'button'; el.className = 'ealert ' + kind;
+      el.innerHTML = `<span class="ico" aria-hidden="true">${kind === 'clear' ? '✓' : '⚠'}</span><span class="txt"><b>Emergency alert</b><i>${head}</i><span>${a.text}</span></span><span class="when mono">now</span>`;
+      el.addEventListener('click', () => { el.classList.add('gone'); setTimeout(() => el.remove(), 300); });
+      wrap.prepend(el);
+      while (wrap.children.length > 3) wrap.lastChild.remove();
+      if (SND.on) SND.alertTone();
+      if (navigator.vibrate) try { navigator.vibrate([400, 120, 400, 120, 400]); } catch (e) { }
+    }, i * 1400));
   }
 
   function typeText(el, txt, animate, done) {
