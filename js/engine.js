@@ -284,24 +284,60 @@
     $('clock').textContent = n.time || ''; $('clock').classList.toggle('frozen', frozen);
     $('sceneImg').innerHTML = ART.scene(n.img) + `<span class="act mono">${n.act || ''}</span>`;
     $('title').textContent = n.title || '';
-    const ch = $('choices'); ch.className = 'choices hide' + (n.doors ? ' doors' : ''); ch.innerHTML = '';
-    (n.choices || []).forEach((c, i) => {
-      const li = document.createElement('li');
-      const needs = arr(c.need).filter(x => !item(x).hidden);
-      const needHtml = needs.length ? `<span class="needs">${needs.map(x => `<span class="need${S.inv.includes(x) ? '' : ' missing'}">${S.inv.includes(x) ? 'Use' : 'Needs'} ${item(x).icon} ${item(x).name}</span>`).join('')}</span>` : '';
-      li.innerHTML = n.doors
-        ? `<button class="choice door-btn" type="button"><span class="dsvg">${doorSVG(c.door || {})}</span><span class="t">${c.t}</span>${needHtml}</button>`
-        : `<button class="choice" type="button"><span class="k">${i + 1}</span><span class="t">${c.t}</span><span class="arrow" aria-hidden="true">→</span>${needHtml}</button>`;
-      li.querySelector('button').addEventListener('click', () => choose(n, i, li));
-      ch.appendChild(li);
-    });
-    const ix = $('interact'); ix.innerHTML = ''; ix.className = 'interact hide';
-    if (n.search) buildSearch(n, id);
-    if (n.code) buildCode(n, id, same);
-    const M = MECH.find(k => n[k]); if (M) buildMech(M, n);
-    if (!same) window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+    const ch = $('choices'), ix = $('interact');
+    const oldCut = document.getElementById('decoyed'); if (oldCut) oldCut.remove();
+    /* the real choices and any puzzle/action for this scene */
+    const buildReal = () => {
+      ch.className = 'choices hide' + (n.doors ? ' doors' : ''); ch.innerHTML = '';
+      (n.choices || []).forEach((c, i) => {
+        const li = document.createElement('li');
+        const needs = arr(c.need).filter(x => !item(x).hidden);
+        const needHtml = needs.length ? `<span class="needs">${needs.map(x => `<span class="need${S.inv.includes(x) ? '' : ' missing'}">${S.inv.includes(x) ? 'Use' : 'Needs'} ${item(x).icon} ${item(x).name}</span>`).join('')}</span>` : '';
+        li.innerHTML = n.doors
+          ? `<button class="choice door-btn" type="button"><span class="dsvg">${doorSVG(c.door || {})}</span><span class="t">${c.t}</span>${needHtml}</button>`
+          : `<button class="choice" type="button"><span class="k">${i + 1}</span><span class="t">${c.t}</span><span class="arrow" aria-hidden="true">→</span>${needHtml}</button>`;
+        li.querySelector('button').addEventListener('click', () => choose(n, i, li));
+        ch.appendChild(li);
+      });
+      ix.innerHTML = ''; ix.className = 'interact hide';
+      if (n.search) buildSearch(n, id);
+      if (n.code) buildCode(n, id, same);
+      const M = MECH.find(k => n[k]); if (M) buildMech(M, n);
+    };
     const reveal = () => { ch.classList.remove('hide'); ix.classList.remove('hide'); requestAnimationFrame(() => ch.classList.add('in')); if (n.timer) startTimer(n); if (mech) mech.start(); };
-    const afterScare = () => typeText($('text'), n.text, same ? 0 : 1, reveal);
+
+    /* decoys: on a timed scene, the player first sees ordinary-looking choices with no clock running.
+       Whichever they pick, they're cut off (node.interrupt) and only then does the timed part start.
+       node.decoys = [{ t, o? }], node.interrupt = text. Skipped on "Choose again". */
+    const timed = n.timer || MECH.some(k => n[k]);
+    const useDecoys = !same && timed && n.decoys && n.decoys.length;
+    const pickDecoy = (d, li) => {
+      if (busy) return; busy = true;
+      if (typing && finishTyping) finishTyping();
+      SND.init(); if (SND.on) SND.heart();
+      if (navigator.vibrate) try { navigator.vibrate(80); } catch (e) { }
+      ch.querySelectorAll('.choice').forEach(b => b.disabled = true); li.classList.add('picked');
+      const rec = document.createElement('div'); rec.id = 'decoyed'; rec.className = 'decoyed';
+      rec.innerHTML = `<div class="cutchoice">${d.t}</div><span class="mono cutlabel">${n.interruptLabel || 'Interrupted'}</span><p class="ctext"></p>`;
+      setTimeout(() => {
+        ix.before(rec); ch.innerHTML = ''; ch.className = 'choices hide';
+        rec.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+        typeText(rec.querySelector('.ctext'), (d.o ? d.o + ' ' : '') + (n.interrupt || 'There’s no time for that.'), 1,
+          () => setTimeout(() => { busy = false; buildReal(); reveal(); }, reduced ? 0 : 450));
+      }, 220);
+    };
+    if (useDecoys) {
+      ch.className = 'choices hide'; ch.innerHTML = ''; ix.innerHTML = ''; ix.className = 'interact hide';
+      n.decoys.forEach((d, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<button class="choice" type="button"><span class="k">${i + 1}</span><span class="t">${d.t}</span><span class="arrow" aria-hidden="true">→</span></button>`;
+        li.querySelector('button').addEventListener('click', () => pickDecoy(d, li));
+        ch.appendChild(li);
+      });
+    } else buildReal();
+    if (!same) window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+    const showFirst = useDecoys ? () => { ch.classList.remove('hide'); requestAnimationFrame(() => ch.classList.add('in')); } : reveal;
+    const afterScare = () => typeText($('text'), n.text, same ? 0 : 1, showFirst);
     if (n.sfx) SND.play(n.sfx);
     if (n.alert && !same) showAlerts(n.alert);
     if (n.scare && !same) { $('text').textContent = ''; scare(n.scare, afterScare); } else afterScare();

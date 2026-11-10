@@ -150,6 +150,10 @@ button { font: inherit; color: inherit; }
 .choices { list-style: none; margin: 20px 0 0; padding: 0; border-top: 1px solid var(--line); }
 .choices li { border-bottom: 1px solid var(--line); }
 .choices.hide { visibility: hidden; }
+.decoyed { margin: 18px 0 4px; border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; animation: shake2 .35s linear; }
+.decoyed .cutchoice { font-size: 18px; color: var(--muted); text-decoration: line-through; text-decoration-color: var(--accent); text-decoration-thickness: 2px; }
+.decoyed .cutlabel { display: inline-block; margin: 8px 0 6px; color: var(--accent); }
+.decoyed .ctext { margin: 0; font-size: 17px; }
 .choice {
   width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 14px 6px 14px 4px;
   display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: baseline;

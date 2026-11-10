@@ -459,3 +459,25 @@ window.NIGHTDOOR = window.NIGHTDOOR || { stories: {} };
     }
   };
 })();
+
+/* Decoys for the timed scenes: ordinary-looking choices shown first, with no clock running. Whichever the
+   player picks, they're cut off by `interrupt`, and only then does the countdown or action start. */
+(function () {
+  const D = (id, decoys, interrupt) => Object.assign(NIGHTDOOR.stories['leave-it-open'].nodes[id], { decoys: decoys.map(t => ({ t })), interrupt });
+  D('duvet', ['Peek out at the wardrobe', 'Text Mum under the covers', 'Make a dash for the door'],
+    'You don’t get the chance. The yellow line under the duvet goes dark, right next to your face. It’s here. Don’t move.');
+  D('night1', ['Call for Mum again', 'Hide your head under the pillow', 'Count to ten and hope it goes'],
+    'Before you can open your mouth, the door creaks again: wider, and wider. It isn’t waiting. Do something. Now.');
+  D('slam', ['Shout for Dad', 'Let go and run back to bed', 'Grab the key out of the lock'],
+    'The door shoves back so hard your feet slide on the carpet. If you let go now it’s coming out. PUSH.');
+  D('night2', ['Peek, just for a second', 'Pull the duvet over your head', 'Reach for your phone'],
+    'Something cold touches your cheek before you can move, and the light on the other side of your eyelids blazes up. Keep them shut.');
+  D('night2_after', ['Wake Mum with your phone', 'Pull the duvet up and wait', 'Shout at it to go away'],
+    'Your phone is dead in your hand. The fingers pull, and the door swings wider. You’ve got seconds.');
+  D('opens', ['Scream for Mum and Dad', 'Hide under the duvet', 'Shut your eyes and pretend it’s a dream'],
+    'No sound comes out. Your eyes won’t shut. It takes its first step out onto the carpet. MOVE.');
+  D('beam', ['Shout for Dad while it’s blinded', 'Make a run for the door', 'Throw the torch at it'],
+    'It lunges into the light the moment you think about moving. If the beam leaves it for a second, it’s over. Hold it there.');
+  D('backed', ['Catch your breath', 'Shine the torch in after it', 'Check it’s really stopped moving'],
+    'The coals in the dark flare gold. It’s already getting back up. Now. Do it now.');
+})();

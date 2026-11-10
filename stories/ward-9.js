@@ -525,3 +525,53 @@ window.NIGHTDOOR = window.NIGHTDOOR || { stories: {} };
     }
   };
 })();
+
+/* Decoys for the timed scenes: ordinary-looking choices shown first, with no clock running. Whichever the
+   player picks, they're cut off by `interrupt`, and only then does the countdown or action start. */
+(function () {
+  const D = (id, decoys, interrupt) => Object.assign(NIGHTDOOR.stories['ward-9'].nodes[id], { decoys: decoys.map(t => ({ t })), interrupt });
+  D('start', ['Pour a cup of tea and think', 'Check the gate CCTV', 'Radio the control room'],
+    'You don’t get that far. The pager’s scream climbs higher, and across the car park the top-floor windows start lighting up green, one by one. Do something.');
+  D('fire_escape', ['Shout for help', 'Look down', 'Try to swing to the next landing'],
+    'The rail bends another inch with a groan. There’s no one to hear you and no time to think. Pull.');
+  D('foyer', ['Read the noticeboard', 'Check the reception desk for keys', 'Call Dev’s name'],
+    'Ding. The indicator has reached 2. Then 1. The cables in the shaft are humming. It’s nearly here.');
+  D('lift', ['Call out to whoever’s breathing', 'Check your phone', 'Press the button for the ground floor'],
+    'The ticking steps closer, just outside your torchlight. Whatever you’re going to do, do it now.');
+  D('stairs', ['Read the rest of the chalk on the wall', 'Shout up the stairwell for Dev', 'Test the barricade'],
+    'The ticking turns the corner of the stairs above you. A torch beam spills down the wall. Move.');
+  D('stairs_hold', ['Ask who’s there', 'Back away down the stairs', 'Switch your torch on'],
+    'Something above you sniffs, long and slow. She’s right on the other side of the bed frames. Don’t breathe.');
+  D('nightbook', ['Read the whole book from the beginning', 'Photograph the page', 'Check the drug cabinet'],
+    'Through the wall, the breathing stops. All of it, all at once. Behind you, the office door clicks.');
+  D('ward_cross', ['Stand up and call for Dev', 'Wait for her to leave the ward', 'Try the light switch by the door'],
+    'Her torch beam swings your way before you can move. Get down, and go between the sweeps.');
+  D('ward_breathe', ['Hold completely still', 'Slip out of the bed and run', 'Close your eyes'],
+    'The bed next to yours has started breathing louder, deliberately, for you to copy. Her torch is two beds away. Breathe with them.');
+  D('grabbed', ['Say you’re security, not a patient', 'Go limp', 'Scream for Dev'],
+    'Her grip tightens and the tape squeals off the roll. She isn’t listening. Pull.');
+  D('bed14', ['Check his pulse', 'Read his chart', 'Say his name again'],
+    'At the top of the ward, her torch has turned round. It’s coming back down towards Bed 14.');
+  D('pulse', ['Reach for Dev’s hand', 'Sit up and look for the doors', 'Shut your eyes'],
+    'The watch is ticking right at the end of your bed. Too late to move. Breathe like them.');
+  D('dev_wakes', ['Tell him it’s you', 'Ask him what happened', 'Check the doors'],
+    'His chest heaves. He’s about to scream. You’ve got a second, maybe less.');
+  D('sit_up', ['Look for Dev', 'Freeze and hope they lie back down', 'Shout for help'],
+    'Every pointing arm swings with you as you move. At the end of the ward, her torch turns. Go.');
+  D('aisle_back', ['Carry Dev on your back', 'Leave him and go for help', 'Wait for her to finish her round'],
+    'Dev’s grip on your arm tightens. Her beam is coming back down the aisle. Move between the sweeps.');
+  D('leave', ['Look back at Dev', 'Get up and run', 'Turn your torch on'],
+    'Her beam sweeps over the bed right beside you. Stay low. Go between the sweeps.');
+  D('grabbed2', ['Say Dev’s name', 'Go still and let her look at you', 'Grab her torch'],
+    'The tape squeals off the roll, right by your ear. Tear free. Now.');
+  D('run', ['Make for the stairs anyway', 'Hide behind the ward doors', 'Phone the police again'],
+    'Her torch comes through the ward doors’ windows, bright and close. No time. Choose.');
+  D('fuse', ['Throw every breaker you can reach', 'Shine your torch over the labels', 'Look for a fuse list'],
+    'Her ticking stops right outside the plant room door. Remember the circuit. Fast.');
+  D('linen_hold', ['Feel for a light switch', 'Push the door to check it shuts', 'Whisper for Dev'],
+    'The stripe of light under the door goes dark. Feet. She’s right outside. Don’t make a sound.');
+  D('finale_lit', ['Run for the stairs', 'Shout at her to let you go', 'Look away from her face'],
+    'She turns her face towards you, blinking, and her eyes are already adjusting. Now, while she can’t see.');
+  D('finale_dark', ['Ask her to let you go', 'Put your hands up', 'Look for another way down'],
+    'She takes one long step closer, and her hand is still held out for your wrist. Decide.');
+})();

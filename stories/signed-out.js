@@ -340,3 +340,13 @@ NIGHTDOOR.stories['signed-out'] = {
     }
   }
 };
+
+/* Decoys for the timed scenes: ordinary-looking choices shown first, with no clock running. Whichever the
+   player picks, they're cut off by `interrupt`, and only then does the countdown start. */
+(function () {
+  const D = (id, decoys, interrupt) => Object.assign(NIGHTDOOR.stories['signed-out'].nodes[id], { decoys: decoys.map(t => ({ t })), interrupt });
+  D('lockdown', ['Text your mum that you’re safe', 'Ask Mr Adebayo what’s happening', 'Peek through the gap in the blinds'],
+    'Mr Adebayo’s hand clamps down on your shoulder. “Hide,” he breathes. The footsteps are three doors away. Two.');
+  D('corridor', ['Read the plaque properly', 'Call out for Mr Adebayo', 'Check your phone for signal'],
+    'A door handle rattles, much closer than before. Then the next one. It’s coming down the corridor. Go.');
+})();
