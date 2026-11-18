@@ -10,6 +10,7 @@ Nightdoor is a browser-based, choose-your-path horror game: a homepage "shelf" o
 - If my computer isn't reachable, say so, and send me a zip of the full updated folder to drop in.
 
 ## Folder layout
+- js/gate.js: the PIN entry screen shown before the site (loaded in index.html's head). Stores only a hash of the PIN; to change it, run NightdoorGate.hash('NEWPIN') in the browser console and paste the result into PIN_HASH. Unlocked devices are remembered for 30 days; NightdoorGate.lock() relocks a device.
 - index.html: homepage and player layout and styles; loads every script in order
 - js/engine.js: game engine (shelf, player, lives, items, sound, saves, jump scares). The SHELF list at the top is the story catalogue.
 - js/art.js: shared art toolkit plus Primrose Close art (SVG drawn in code, scenes 800x400, jump scares 600x600)
