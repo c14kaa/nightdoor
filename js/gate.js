@@ -77,6 +77,10 @@
   #ndGate .light { position: absolute; inset: 0; z-index: 5; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 40%, #fff3d0, #ffcf7a 30%, #000 75%); transition: opacity 1.4s ease; }
   #ndGate.open .light { opacity: 1; }
   #ndGate.gone { opacity: 0; }
+  #ndGate .snd { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; z-index: 6; appearance: none; background: none; border: 1px solid #2c241e;
+    color: #7d7468; font: 10px 'IBM Plex Mono', monospace; letter-spacing: .18em; padding: 6px 9px; cursor: pointer; }
+  #ndGate .snd.on { color: #e0352a; border-color: #5a1a12; }
+  #ndGate .foot.hint { color: #8a2a1e; animation: ndFlick 3s steps(1) infinite; }
   @media (prefers-reduced-motion: reduce) { #ndGate *, #ndGate::before { animation: none !important; } }
   `;
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
@@ -96,6 +100,98 @@
       o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + .02);
     } catch (e) { }
   }
+
+  // ---------- Background soundtrack (all synthesised; browsers only allow sound after the first tap or key press) ----------
+  var amb = null, MUTE_KEY = KEY + '.mute';
+  function ctx() { if (!ac) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ac = new C(); } if (ac.state === 'suspended') ac.resume(); return ac; }
+  function noiseBuf(a, secs) { var b = a.createBuffer(1, a.sampleRate * secs, a.sampleRate), d = b.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+  function lfo(a, rate, depth, target) { var o = a.createOscillator(), g = a.createGain(); o.frequency.value = rate; g.gain.value = depth; o.connect(g); g.connect(target); o.start(); return o; }
+
+  function startAmbience() {
+    if (amb || load(MUTE_KEY)) return;
+    var a = ctx(); if (!a) return;
+    var t = a.currentTime, nodes = [];
+    var master = a.createGain(); master.gain.setValueAtTime(0.0001, t); master.gain.exponentialRampToValueAtTime(0.55, t + 4); master.connect(a.destination);
+    var echo = a.createDelay(2), fb = a.createGain(), wet = a.createGain();
+    echo.delayTime.value = .47; fb.gain.value = .38; wet.gain.value = .5; echo.connect(fb); fb.connect(echo); echo.connect(wet); wet.connect(master);
+
+    // 1. Low, uneasy drone: detuned saws and a tritone, breathing through a slow filter
+    var lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 6;
+    var dg = a.createGain(); dg.gain.value = .07; lp.connect(dg); dg.connect(master);
+    [[55, 'sawtooth'], [55.4, 'sawtooth'], [77.8, 'sine'], [27.5, 'sine']].forEach(function (v) { var o = a.createOscillator(); o.type = v[1]; o.frequency.value = v[0]; o.connect(lp); o.start(); nodes.push(o); });
+    nodes.push(lfo(a, .06, 160, lp.frequency), lfo(a, .11, .025, dg.gain));
+
+    // 2. Wind moaning through a gap under the door
+    var w = a.createBufferSource(); w.buffer = noiseBuf(a, 4); w.loop = true;
+    var bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = 3;
+    var wg = a.createGain(); wg.gain.value = .045; w.connect(bp); bp.connect(wg); wg.connect(master); w.start(); nodes.push(w);
+    nodes.push(lfo(a, .045, 260, bp.frequency), lfo(a, .08, .035, wg.gain));
+
+    amb = { a: a, master: master, echo: echo, nodes: nodes, timers: [], heart: 1150, on: true };
+
+    // 3. A heartbeat, faint until something goes wrong
+    (function beat() {
+      if (!amb || !amb.on) return;
+      var n = a.currentTime;
+      [0, .22].forEach(function (off, i) {
+        var o = a.createOscillator(), g = a.createGain(); o.type = 'sine';
+        o.frequency.setValueAtTime(62, n + off); o.frequency.exponentialRampToValueAtTime(34, n + off + .18);
+        g.gain.setValueAtTime(.0001, n + off); g.gain.exponentialRampToValueAtTime(i ? .22 : .32, n + off + .015); g.gain.exponentialRampToValueAtTime(.0001, n + off + .24);
+        o.connect(g); g.connect(master); o.start(n + off); o.stop(n + off + .3);
+      });
+      amb.timers.push(setTimeout(beat, amb.heart));
+      if (amb.heart < 1150) amb.heart = Math.min(1150, amb.heart + 20);   // calms down slowly
+    })();
+
+    // 4. A broken music box, slightly out of tune, echoing
+    var scale = [440, 466.2, 523.3, 587.3, 622.3, 698.5, 880, 932.3];
+    (function chime() {
+      if (!amb || !amb.on) return;
+      var n = a.currentTime, f = scale[Math.floor(Math.random() * scale.length)] * (1 + (Math.random() - .5) * .02);
+      var o = a.createOscillator(), o2 = a.createOscillator(), g = a.createGain();
+      o.type = 'triangle'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2.01;
+      g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.06, n + .01); g.gain.exponentialRampToValueAtTime(.0001, n + 2.2);
+      o.connect(g); o2.connect(g); g.connect(master); g.connect(amb.echo);
+      o.start(n); o2.start(n); o.stop(n + 2.3); o2.stop(n + 2.3);
+      var gap = Math.random() < .25 ? 4000 + Math.random() * 5000 : 600 + Math.random() * 900;   // little phrases, then silence
+      amb.timers.push(setTimeout(chime, gap));
+    })();
+
+    // 5. Every so often: a creak, or a breath, from somewhere behind you
+    (function creak() {
+      if (!amb || !amb.on) return;
+      amb.timers.push(setTimeout(function () {
+        if (!amb || !amb.on) return;
+        var n = a.currentTime, src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(), pan = a.createStereoPanner ? a.createStereoPanner() : null;
+        src.buffer = noiseBuf(a, 2); f.type = 'bandpass'; f.Q.value = Math.random() < .5 ? 18 : 2;
+        f.frequency.setValueAtTime(300 + Math.random() * 400, n); f.frequency.exponentialRampToValueAtTime(120 + Math.random() * 200, n + 1.6);
+        g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.12, n + .5); g.gain.exponentialRampToValueAtTime(.0001, n + 1.8);
+        src.connect(f); f.connect(g);
+        if (pan) { pan.pan.value = Math.random() < .5 ? -.9 : .9; g.connect(pan); pan.connect(master); } else g.connect(master);
+        src.start(n); src.stop(n + 2);
+        creak();
+      }, 9000 + Math.random() * 14000));
+    })();
+  }
+
+  function scareAmbience(level) {   // after a wrong guess: the heart races and something swells
+    if (!amb) return;
+    amb.heart = level > 2 ? 420 : 650;
+    var a = amb.a, n = a.currentTime;
+    [110, 116.5, 155.6].forEach(function (f) {
+      var o = a.createOscillator(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.04, n + .8); g.gain.exponentialRampToValueAtTime(.0001, n + 3);
+      o.connect(g); g.connect(amb.master); o.start(n); o.stop(n + 3.1);
+    });
+  }
+
+  function stopAmbience(secs) {
+    if (!amb) return;
+    var x = amb; amb = null; x.on = false; x.timers.forEach(clearTimeout);
+    var n = x.a.currentTime; x.master.gain.cancelScheduledValues(n); x.master.gain.setValueAtTime(x.master.gain.value || .0001, n); x.master.gain.exponentialRampToValueAtTime(.0001, n + (secs || .4));
+    setTimeout(function () { x.nodes.forEach(function (o) { try { o.stop(); } catch (e) { } }); x.master.disconnect(); }, (secs || .4) * 1000 + 100);
+  }
+
   function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { } }
 
   var LINES = [
@@ -116,6 +212,7 @@
     for (var n = 1; n <= 9; n++) keys += '<button type="button" data-k="' + n + '">' + n + '</button>';
     keys += '<button type="button" class="sm" data-k="clr">Clear</button><button type="button" data-k="0">0</button><button type="button" class="sm" data-k="del">Back</button>';
     g.innerHTML =
+      '<button type="button" class="snd" id="ndSnd"></button>' +
       '<div class="fog"></div><div class="eyes"><i></i><i></i></div>' +
       '<div class="box">' +
         '<div class="stamp">TOP SECRET</div>' +
@@ -125,13 +222,26 @@
         '<p class="line" id="ndLine">' + LINES[Math.floor(Math.random() * LINES.length)] + '</p>' +
         '<div class="slots" id="ndSlots"><span></span><span></span><span></span><span></span></div>' +
         '<div class="pad" id="ndPad">' + keys + '</div>' +
-        '<div class="foot">UNAUTHORISED ENTRY WILL BE NOTICED</div>' +
+        '<div class="foot" id="ndFoot">UNAUTHORISED ENTRY WILL BE NOTICED</div>' +
       '</div><div class="flash"></div><div class="light"></div>';
     document.body.appendChild(g);
 
     var pin = '', tries = 0, busy = false;
     var line = g.querySelector('#ndLine'), slots = g.querySelectorAll('#ndSlots span'), pad = g.querySelector('#ndPad');
     var eyes = g.querySelector('.eyes'), flash = g.querySelector('.flash');
+
+    var sndBtn = g.querySelector('#ndSnd'), foot = g.querySelector('#ndFoot');
+    function sndLabel() { var muted = !!load(MUTE_KEY); sndBtn.textContent = muted ? 'SOUND OFF' : 'SOUND ON'; sndBtn.className = 'snd' + (muted ? '' : ' on'); }
+    sndLabel();
+    if (!load(MUTE_KEY)) { foot.textContent = 'TAP ANYWHERE TO LISTEN'; foot.classList.add('hint'); }
+    sndBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (load(MUTE_KEY)) { store(MUTE_KEY, null); ctx(); startAmbience(); } else { store(MUTE_KEY, true); stopAmbience(.6); }
+      sndLabel(); wake();
+    });
+    function wake() { foot.textContent = 'UNAUTHORISED ENTRY WILL BE NOTICED'; foot.classList.remove('hint'); }
+    function firstTouch(e) { if (e && e.target === sndBtn) return; ctx(); startAmbience(); wake(); g.removeEventListener('pointerdown', firstTouch, true); window.removeEventListener('keydown', firstTouch, true); }
+    g.addEventListener('pointerdown', firstTouch, true); window.addEventListener('keydown', firstTouch, true);
 
     var lockedUntil = load(KEY + '.wait') || 0;
     if (lockedUntil > Date.now()) lockout(lockedUntil);
@@ -159,7 +269,7 @@
       tries++;
       g.classList.remove('shake'); void g.offsetWidth; g.classList.add('shake');
       flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
-      tone(70, .6, 'sawtooth', .18, 40); buzz([80, 40, 120]); showEyes();
+      tone(70, .6, 'sawtooth', .18, 40); buzz([80, 40, 120]); showEyes(); scareAmbience(tries);
       pin = ''; draw();
       if (tries >= MAX_TRIES) { tries = 0; var until = Date.now() + LOCKOUT_SECS * 1000; store(KEY + '.wait', until); lockout(until); return; }
       var left = MAX_TRIES - tries;
@@ -183,7 +293,7 @@
       say('ACCESS GRANTED.<br>Welcome back. Don’t let anything follow you in.', 'ok');
       setPad(false);
       tone(220, 1.2, 'sine', .12, 440); setTimeout(function () { tone(330, 1.4, 'sine', .08, 660); }, 180);
-      g.classList.add('open');
+      g.classList.add('open'); stopAmbience(2.4);
       setTimeout(function () {
         root.classList.remove('nd-locked');
         g.classList.add('gone');
